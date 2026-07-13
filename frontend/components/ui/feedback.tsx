@@ -1,0 +1,2 @@
+export function ErrorMessage({message}:{message?:string}){return message?<div role="alert" className="safety-stripe rounded-[4px] border border-[#e6c2bd] bg-[#fff4f2] px-4 py-3 text-sm text-[#963a35]">{message}</div>:null}
+export function Loading({label="Loading clinic data…"}:{label?:string}){return <div role="status" className="flex min-h-64 items-center justify-center text-sm text-[#52656e]"><span className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-[#c4d3cf] border-t-[#167d78]"/>{label}</div>}

@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+:root {
+  --ink-950: #10212b;
+  --ink-700: #314854;
+  --ink-500: #52656e;
+  --canvas: #f5f7f6;
+  --surface: #ffffff;
+  --line: #d6e1de;
+  --line-strong: #b9cbc6;
+  --clinical-navy: #163c52;
+  --navy-deep: #0d2c3d;
+  --gulf-teal: #167d78;
+  --teal-dark: #0f625f;
+  --teal-soft: #ddeeea;
+  --sand: #efe8dd;
+  --sand-soft: #f8f4ed;
+  --coral: #c8634e;
+  --warning: #9a6417;
+  --danger: #b74242;
+  --success: #267a52;
+  --focus: #087c78;
+  --shadow: 0 1px 2px rgb(16 33 43 / 5%);
+}
+
+* { box-sizing: border-box; }
+html { max-width: 100vw; overflow-x: clip; background: var(--canvas); scroll-behavior: smooth; }
+body {
+  margin: 0;
+  max-width: 100vw;
+  overflow-x: clip;
+  color: var(--ink-950);
+  background: var(--canvas);
+  font-family: "IBM Plex Sans", "Source Sans 3", "Noto Sans Arabic", Arial, sans-serif;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+button, a, input, select, textarea { font: inherit; }
+button, a { transition: color .14s, background-color .14s, border-color .14s, opacity .14s; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--focus) 36%, transparent); outline-offset: 2px; }
+::selection { background: var(--teal-soft); color: var(--ink-950); }
+.tabular { font-variant-numeric: tabular-nums; }
+.scrollbar { scrollbar-color: #adc1bc transparent; scrollbar-width: thin; }
+.scrollbar::-webkit-scrollbar { width: 7px; height: 7px; }
+.scrollbar::-webkit-scrollbar-thumb { background: #adc1bc; border-radius: 2px; }
+.clinical-grid {
+  background-image: linear-gradient(to right, rgb(22 60 82 / 3%) 1px, transparent 1px);
+  background-size: 64px 100%;
+}
+.safety-stripe { border-inline-start: 4px solid var(--coral); }
+.skip-link {
+  position: fixed;
+  left: 1rem;
+  top: -5rem;
+  z-index: 100;
+  background: var(--ink-950);
+  color: white;
+  padding: .75rem 1rem;
+}
+.skip-link:focus { top: 1rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation-duration: .001ms !important; }
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .print-card { border: 0 !important; box-shadow: none !important; }
+}

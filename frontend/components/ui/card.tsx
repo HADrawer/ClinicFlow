@@ -1,0 +1,3 @@
+import {HTMLAttributes} from "react";import {cn} from "@/lib/utils";
+export function Card({className,...props}:HTMLAttributes<HTMLDivElement>){return <div className={cn("min-w-0 overflow-hidden rounded-[6px] border border-[#d6e1de] bg-white shadow-[0_1px_2px_rgba(16,33,43,.04)]",className)} {...props}/>}
+export function CardHeader({title,description,action}:{title:string;description?:string;action?:React.ReactNode}){return <div className="flex items-start justify-between gap-4 border-b border-[#dce6e3] px-5 py-4"><div><h2 className="font-semibold text-[#10212b]">{title}</h2>{description&&<p className="mt-0.5 text-sm text-[#52656e]">{description}</p>}</div>{action}</div>}

@@ -1,0 +1,15 @@
+.env
+.venv/
+.agents
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+*.pyc
+*.db
+node_modules/
+.next/
+coverage/
+postgres_data/
+private_uploads/
+test-results/
+playwright-report/

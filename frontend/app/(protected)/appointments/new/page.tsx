@@ -1,0 +1,2 @@
+import {Suspense} from "react";import {PageHeader} from "@/components/ui/page-header";import {Card} from "@/components/ui/card";import {AppointmentForm} from "@/components/forms/appointment-form";import {Loading} from "@/components/ui/feedback";
+export default function NewAppointment(){return <><PageHeader title="New appointment" description="Book a patient with an available doctor and service."/><Card className="max-w-4xl p-5 sm:p-6"><Suspense fallback={<Loading/>}><AppointmentForm/></Suspense></Card></>}
