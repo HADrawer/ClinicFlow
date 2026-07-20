@@ -144,3 +144,51 @@ test("tenant isolation, disabled pharmacy and responsive accessible core screens
   await logout(page);await login(page,"owner.riffa@clinicflow.test");await expect(page.getByRole("link",{name:"Pharmacy"})).toHaveCount(0);
   const riffaToken=await page.evaluate(()=>localStorage.getItem("clinicflow_token"));const pharmacy=await request.get("http://127.0.0.1:8000/api/pharmacy/dashboard",{headers:{Authorization:`Bearer ${riffaToken}`}});expect(pharmacy.status()).toBe(404);
 });
+
+test("Arabic is persisted as a true RTL interface across navigation, forms, tables and responsive views",async({page})=>{
+  await login(page,"owner@clinicflow.test");
+  await page.getByRole("button",{name:"العربية"}).click();
+  await expect(page.locator("html")).toHaveAttribute("dir","rtl");
+  await expect(page.locator("html")).toHaveAttribute("lang","ar");
+  await expect(page.getByRole("heading",{name:"قيادة العيادة"})).toBeVisible();
+  await expect(page.getByRole("link",{name:"الجدول"})).toBeVisible();
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("dir","rtl");
+  await expect(page.getByRole("heading",{name:"قيادة العيادة"})).toBeVisible();
+  await page.setViewportSize({width:1440,height:900});
+  await page.screenshot({path:"test-results/screenshots/desktop-1440-dashboard-ar.png",fullPage:true});
+  await page.goto("/appointments");
+  await expect(page.getByRole("heading",{name:"جدول العيادة"})).toBeVisible();
+  await page.getByRole("button",{name:"قائمة",exact:true}).click();
+  await expect(page.getByRole("columnheader",{name:"المريض"})).toBeVisible();
+  await page.screenshot({path:"test-results/screenshots/desktop-appointments-ar.png",fullPage:true});
+  await page.goto("/patients/new");
+  await expect(page.getByLabel("الاسم القانوني الكامل")).toBeVisible();
+  await expect(page.getByLabel("الرقم الشخصي")).toBeVisible();
+  await page.setViewportSize({width:768,height:1024});
+  await assertNoPageOverflow(page);
+  await page.screenshot({path:"test-results/screenshots/tablet-768-patient-form-ar.png",fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  await assertNoPageOverflow(page);
+  await page.screenshot({path:"test-results/screenshots/mobile-390-patient-form-ar.png",fullPage:true});
+  await page.getByRole("button",{name:"English"}).click();
+  await expect(page.locator("html")).toHaveAttribute("dir","ltr");
+  await expect(page.getByRole("heading",{name:"Register patient"})).toBeVisible();
+});
+
+test("every seeded role receives a distinct permitted workspace",async({page})=>{
+  const roles=[
+    {email:"doctor@clinicflow.test",heading:"My clinical current",visible:"Schedule",hidden:"Billing"},
+    {email:"reception@clinicflow.test",heading:"Front desk current",visible:"Patients",hidden:"Insurance"},
+    {email:"nurse@clinicflow.test",heading:"Care coordination",visible:"Queue",hidden:"Billing"},
+    {email:"accountant@clinicflow.test",heading:"Revenue cycle",visible:"Billing",hidden:"Patients"},
+    {email:"pharmacist@clinicflow.test",heading:"Dispensary current",visible:"Pharmacy",hidden:"Patients"},
+  ];
+  for(const role of roles){
+    await login(page,role.email);
+    await expect(page.getByRole("heading",{name:role.heading})).toBeVisible();
+    await expect(page.getByRole("link",{name:role.visible,exact:true})).toBeVisible();
+    await expect(page.getByRole("link",{name:role.hidden,exact:true})).toHaveCount(0);
+    await logout(page);
+  }
+});

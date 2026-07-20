@@ -1,2 +1,52 @@
-"use client";import Link from "next/link";import {useState} from "react";import {Search,UserPlus} from "lucide-react";import {useApi} from "@/lib/hooks";import type {Patient} from "@/lib/types";import {shortDate} from "@/lib/utils";import {PageHeader} from "@/components/ui/page-header";import {Card} from "@/components/ui/card";import {Input} from "@/components/ui/input";import {DataTable} from "@/components/ui/data-table";import {ErrorMessage,Loading} from "@/components/ui/feedback";
-export default function Patients(){const [search,setSearch]=useState("");const {data,loading,error}=useApi<Patient[]>(`/patients?search=${encodeURIComponent(search)}`);return <><PageHeader title="Patients" description="Patient registration, medical warnings and longitudinal records." actions={<Link href="/patients/new" className="inline-flex h-10 items-center gap-2 rounded-md bg-[#1d4f91] px-4 text-sm font-semibold text-white"><UserPlus size={17}/>Register patient</Link>}/><Card><div className="border-b border-slate-200 p-4"><div className="relative max-w-md"><Search className="absolute left-3 top-2.5 text-slate-400" size={18}/><Input className="pl-10" placeholder="Search name, phone or CPR" value={search} onChange={e=>setSearch(e.target.value)}/></div></div>{loading?<Loading/>:error?<div className="p-4"><ErrorMessage message={error}/></div>:<DataTable rows={data||[]} keyOf={x=>x.id} empty="No matching patients" columns={[{key:"name",header:"Patient",render:x=><div><Link href={`/patients/${x.id}`} className="font-semibold text-blue-800 hover:underline">{x.full_name}</Link><p className="mt-0.5 text-xs text-slate-500">{x.phone}</p></div>},{key:"cpr",header:"CPR",render:x=><span className="tabular">{x.cpr_number||"—"}</span>},{key:"dob",header:"Date of birth",render:x=>x.date_of_birth?shortDate(x.date_of_birth):"—"},{key:"nationality",header:"Nationality",render:x=>x.nationality||"—"},{key:"warnings",header:"Medical warnings",render:x=><div className="flex flex-wrap gap-1">{x.allergies?<span className="rounded bg-red-50 px-2 py-1 text-xs font-medium text-red-700">Allergy: {x.allergies}</span>:null}{x.chronic_conditions?<span className="rounded bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{x.chronic_conditions}</span>:null}{!x.allergies&&!x.chronic_conditions&&<span className="text-slate-400">None recorded</span>}</div>},{key:"created",header:"Registered",render:x=>shortDate(x.created_at)}]}/>}</Card></>}
+"use client";
+
+import Link from "next/link";
+import {useState} from "react";
+import {Search,UserPlus} from "lucide-react";
+import {useApi} from "@/lib/hooks";
+import {useI18n} from "@/lib/i18n";
+import type {Patient} from "@/lib/types";
+import {shortDate} from "@/lib/utils";
+import {PageHeader} from "@/components/ui/page-header";
+import {Card} from "@/components/ui/card";
+import {Input} from "@/components/ui/input";
+import {DataTable} from "@/components/ui/data-table";
+import {ErrorMessage,Loading} from "@/components/ui/feedback";
+
+export default function Patients(){
+  const {t}=useI18n();
+  const [search,setSearch]=useState("");
+  const {data,loading,error}=useApi<Patient[]>(`/patients?search=${encodeURIComponent(search)}`);
+
+  return <>
+    <PageHeader
+      title={t("patients.title")}
+      description={t("patients.description")}
+      actions={<Link href="/patients/new" className="inline-flex h-10 items-center gap-2 rounded-[4px] bg-[#167d78] px-4 text-sm font-semibold text-white hover:bg-[#0f625f]"><UserPlus size={17}/>{t("patients.register")}</Link>}
+    />
+    <Card>
+      <div className="border-b border-[#d6e1de] bg-[#f8faf9] p-4">
+        <label className="block max-w-md">
+          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[.08em] text-[#52656e]">{t("patients.searchLabel")}</span>
+          <span className="relative block">
+            <Search className="pointer-events-none absolute start-3 top-2.5 text-[#6f838b]" size={18}/>
+            <Input className="ps-10" type="search" placeholder={t("patients.searchPlaceholder")} value={search} onChange={event=>setSearch(event.target.value)}/>
+          </span>
+        </label>
+      </div>
+      {loading?<Loading/>:error?<div className="p-4"><ErrorMessage message={error}/></div>:<DataTable
+        rows={data||[]}
+        keyOf={patient=>patient.id}
+        empty={search?t("patients.noMatches"):t("patients.empty")}
+        columns={[
+          {key:"name",header:t("common.patient"),render:patient=><div><Link href={`/patients/${patient.id}`} className="font-semibold text-[#164e67] hover:underline">{patient.full_name}</Link><p className="mt-0.5 text-xs text-[#52656e]" dir="ltr">{patient.phone}</p></div>},
+          {key:"cpr",header:t("patients.cpr"),render:patient=><span className="tabular" dir="ltr">{patient.cpr_number||"—"}</span>},
+          {key:"dob",header:t("patients.dateOfBirth"),render:patient=>patient.date_of_birth?shortDate(patient.date_of_birth):"—"},
+          {key:"nationality",header:t("forms.nationality"),render:patient=>patient.nationality||"—"},
+          {key:"warnings",header:t("patients.medicalWarnings"),render:patient=><div className="flex flex-col gap-1">{patient.allergies&&<span className="safety-stripe bg-[#fff4f2] px-2 py-1 text-xs font-semibold text-[#963a35]">{t("patients.allergyWarningLabel")} {patient.allergies}</span>}{patient.chronic_conditions&&<span className="border-s-2 border-[#c58a2d] bg-[#fff8e9] px-2 py-1 text-xs font-medium text-[#805410]">{patient.chronic_conditions}</span>}{!patient.allergies&&!patient.chronic_conditions&&<span className="text-[#6f838b]">{t("common.none")}</span>}</div>},
+          {key:"created",header:t("common.registered"),render:patient=>shortDate(patient.created_at)},
+        ]}
+      />}
+    </Card>
+  </>;
+}

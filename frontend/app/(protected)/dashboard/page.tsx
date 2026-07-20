@@ -3,10 +3,8 @@ import Link from "next/link";
 import {
   CalendarPlus,
   Clock3,
-  FileClock,
   Pill,
   Search,
-  ShieldAlert,
   UserRoundPlus,
 } from "lucide-react";
 import {
@@ -27,30 +25,32 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
 import { ErrorMessage, Loading } from "@/components/ui/feedback";
+import {MetricStrip,type Metric} from "@/components/ui/metric-strip";
+import {useI18n} from "@/lib/i18n";
 const headings = {
   owner: [
-    "Clinic command",
-    "Business, access, safety and operational exceptions from live records.",
+    "dashboard.ownerTitle",
+    "dashboard.ownerDescription",
   ],
   doctor: [
-    "My clinical current",
-    "Today’s schedule, waiting patients and clinical follow-up work.",
+    "dashboard.doctorTitle",
+    "dashboard.doctorDescription",
   ],
   receptionist: [
-    "Front desk current",
-    "Arrival, booking, confirmation and checkout work in one view.",
+    "dashboard.receptionTitle",
+    "dashboard.receptionDescription",
   ],
   accountant: [
-    "Revenue cycle",
-    "Collections, outstanding balances and insurer exposure.",
+    "dashboard.accountantTitle",
+    "dashboard.accountantDescription",
   ],
   nurse: [
-    "Care coordination",
-    "Arrivals, queue pressure and the clinic’s active appointment current.",
+    "dashboard.nurseTitle",
+    "dashboard.nurseDescription",
   ],
   pharmacist: [
-    "Dispensary current",
-    "Prescription, stock and expiry work requiring pharmacy attention.",
+    "dashboard.pharmacistTitle",
+    "dashboard.pharmacistDescription",
   ],
 } as const;
 export default function Dashboard() {
@@ -60,123 +60,74 @@ export default function Dashboard() {
 }
 function ClinicDashboard() {
   const { user } = useAuth();
+  const {t,label}=useI18n();
   const { data, loading, error } = useApi<DashboardData>(
     "/analytics/dashboard",
   );
   if (loading) return <Loading />;
   if (!data) return <ErrorMessage message={error} />;
   const heading = headings[user!.role];
-  const financial = user?.role === "owner" || user?.role === "accountant";
-  const stats = financial
+  const role=user!.role;
+  const stats:Metric[] = role==="owner"
     ? [
-        ["Today", data.today_appointments],
-        ["7-day appointments", data.week_appointments],
-        ["Month collected", money(data.monthly_revenue)],
-        ["Outstanding", money(data.outstanding_balances)],
-        ["Pending insurance", money(data.pending_insurance)],
-      ]
-    : [
-        ["Today", data.today_appointments],
-        ["Next 7 days", data.week_appointments],
-        ["No-show rate", `${data.no_show_rate}%`],
-        ["Assigned patients", data.new_patients],
-        [
-          "Waiting / checked in",
-          (data.status_breakdown.waiting || 0) +
-            (data.status_breakdown.checked_in || 0),
-        ],
-      ];
+        [t("dashboard.today"), data.today_appointments],
+        [t("dashboard.sevenDayAppointments"), data.week_appointments],
+        [t("dashboard.monthCollected"), money(data.monthly_revenue)],
+        [t("dashboard.outstanding"), money(data.outstanding_balances)],
+        [t("dashboard.pendingInsurance"), money(data.pending_insurance)],
+      ].map(([label,value])=>({label:String(label),value}))
+    : role==="accountant"?[{label:t("dashboard.monthCollected"),value:money(data.monthly_revenue)},{label:t("dashboard.outstanding"),value:money(data.outstanding_balances),tone:"warning"},{label:t("dashboard.pendingInsurance"),value:money(data.pending_insurance)},{label:t("billing.paidInvoices"),value:data.payment_methods.length},{label:t("dashboard.noShowRate"),value:`${data.no_show_rate}%`}]
+    : role==="receptionist"?[{label:t("dashboard.today"),value:data.today_appointments},{label:t("appointments.unconfirmed"),value:(data.status_breakdown.requested||0)+(data.status_breakdown.scheduled||0),tone:"warning"},{label:t("appointments.checkedIn"),value:data.status_breakdown.checked_in||0},{label:label("waiting"),value:data.status_breakdown.waiting||0},{label:t("dashboard.noShowRate"),value:`${data.no_show_rate}%`}]
+    : role==="nurse"?[{label:t("dashboard.today"),value:data.today_appointments},{label:t("appointments.checkedIn"),value:data.status_breakdown.checked_in||0},{label:label("waiting"),value:data.status_breakdown.waiting||0,tone:"warning"},{label:label("in_progress"),value:data.status_breakdown.in_progress||0},{label:label("completed"),value:data.status_breakdown.completed||0}]
+    : [{label:t("dashboard.today"),value:data.today_appointments},{label:t("dashboard.nextSevenDays"),value:data.week_appointments},{label:t("dashboard.waitingCheckedIn"),value:(data.status_breakdown.waiting||0)+(data.status_breakdown.checked_in||0),tone:"warning"},{label:label("completed"),value:data.status_breakdown.completed||0},{label:t("dashboard.noShowRate"),value:`${data.no_show_rate}%`}];
   const chart = Object.entries(data.status_breakdown).map(
-    ([status, count]) => ({ status: titleCase(status), count }),
+    ([status, count]) => ({ status: label(status), count }),
   );
   return (
     <>
       <PageHeader
-        title={heading[0]}
-        description={heading[1]}
+        title={t(heading[0])}
+        description={t(heading[1])}
         actions={<RoleActions role={user!.role} />}
       />
-      <section
-        aria-label="Current measures"
-        className="mb-5 grid border border-[#d6e1de] bg-white sm:grid-cols-2 lg:grid-cols-5"
-      >
-        {stats.map(([label, value], index) => (
-          <div
-            className={`border-l-3 px-4 py-3 ${index === 0 ? "border-l-[#167d78]" : "border-l-transparent"} border-b border-r border-[#e3ebe9] last:border-r-0 sm:border-b-0`}
-            key={String(label)}
-          >
-            <p className="text-[10px] font-semibold uppercase tracking-[.1em] text-[#52656e]">
-              {label}
-            </p>
-            <p className="mt-1.5 text-xl font-semibold tabular text-[#163c52]">
-              {value}
-            </p>
-          </div>
-        ))}
-      </section>
-      <div className="grid gap-5 xl:grid-cols-[1.55fr_.8fr]">
+      <MetricStrip items={stats} className="mb-5"/>
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[1.55fr_.8fr]">
         <Card>
           <CardHeader
             title={
-              user?.role === "doctor"
-                ? "My upcoming patients"
-                : "Upcoming appointment current"
+              role === "doctor"
+                ? t("dashboard.myUpcoming")
+                : role==="accountant"?t("dashboard.collectionPosition"):t("dashboard.upcoming")
             }
-            description="Confirmed, scheduled and active visits"
+            description={role==="accountant"?t("dashboard.collectionDescription"):t("dashboard.upcomingDescription")}
             action={
-              <Link
+              role!=="accountant"?<Link
                 href="/appointments"
                 className="text-sm font-semibold text-[#0f625f]"
               >
-                Open calendar
-              </Link>
+                {t("dashboard.openCalendar")}
+              </Link>:<Link href="/billing" className="text-sm font-semibold text-[#0f625f]">{t("billing.open")}</Link>
             }
           />
-          <DataTable
-            rows={data.upcoming_appointments}
-            keyOf={(item) => item.id}
-            columns={[
-              {
-                key: "time",
-                header: "Date & time",
-                render: (item) => (
-                  <Link
-                    className="font-semibold text-[#164e67]"
-                    href={`/appointments/${item.id}`}
-                  >
-                    {dateTime(item.time)}
-                  </Link>
-                ),
-              },
-              {
-                key: "patient",
-                header: "Patient",
-                render: (item) => item.patient,
-              },
-              {
-                key: "doctor",
-                header: "Doctor",
-                className: "hidden md:table-cell",
-                render: (item) => item.doctor,
-              },
-              {
-                key: "service",
-                header: "Service",
-                className: "hidden md:table-cell",
-                render: (item) => item.service,
-              },
-              {
-                key: "status",
-                header: "Status",
-                render: (item) => <Badge value={item.status} />,
-              },
-            ]}
-          />
+          {role==="accountant"?<div className="divide-y divide-[#e3ebe9] px-5">{[[t("dashboard.monthCollected"),money(data.monthly_revenue)],[t("dashboard.outstanding"),money(data.outstanding_balances)],[t("dashboard.pendingInsurance"),money(data.pending_insurance)]].map(([label,value])=><div className="flex items-center justify-between py-4" key={label}><span className="text-sm text-[#52656e]">{label}</span><strong className="tabular text-[#163c52]">{value}</strong></div>)}</div>:<>
+            <div className="hidden sm:block"><DataTable
+              rows={data.upcoming_appointments}
+              keyOf={(item) => item.id}
+              columns={[
+                {key:"time",header:t("common.dateTime"),render:item=><Link className="font-semibold text-[#164e67]" href={`/appointments/${item.id}`}>{dateTime(item.time)}</Link>},
+                {key:"patient",header:t("common.patient"),render:item=>item.patient},
+                {key:"doctor",header:t("common.doctor"),className:"hidden md:table-cell",render:item=>item.doctor},
+                {key:"service",header:t("common.service"),className:"hidden md:table-cell",render:item=>item.service},
+                {key:"status",header:t("common.status"),render:item=><Badge value={item.status}/>},
+              ]}
+            /></div>
+            <div className="divide-y divide-[#e3ebe9] sm:hidden">{data.upcoming_appointments.map(item=><Link href={`/appointments/${item.id}`} className="block px-5 py-3" key={item.id}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold text-[#164e67]">{item.patient}</p><p className="mt-0.5 text-xs text-[#52656e]">{dateTime(item.time)}</p></div><Badge value={item.status}/></div><p className="mt-2 truncate text-xs text-[#52656e]">{item.doctor} · {item.service}</p></Link>)}</div>
+          </>}
         </Card>
         <Card>
           <CardHeader
-            title="Status pressure"
-            description="Visible workload, not a decorative metric"
+              title={t("dashboard.statusPressure")}
+              description={t("dashboard.statusPressureDescription")}
           />
           <div className="h-64 p-4">
             <ResponsiveContainer width="100%" height="100%">
@@ -217,14 +168,14 @@ function ClinicDashboard() {
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <Card>
             <CardHeader
-              title="Recent protected activity"
-              description="No patient details are shown in this summary"
+              title={t("dashboard.recentActivity")}
+              description={t("dashboard.noPatientDetails")}
             />
             <div className="divide-y divide-[#e3ebe9] px-5">
               {data.recent_activity.map((item, index) => (
                 <div className="py-3" key={index}>
                   <p className="text-sm font-medium text-[#314854]">
-                    {titleCase(item.action.replace(".", " "))}
+                    {t(`audit.${item.action}`)===`audit.${item.action}`?titleCase(item.action.replaceAll(".", " ")):t(`audit.${item.action}`)}
                   </p>
                   <p className="mt-0.5 text-xs text-[#52656e]">
                     {dateTime(item.created_at)}
@@ -235,15 +186,15 @@ function ClinicDashboard() {
           </Card>
           <Card>
             <CardHeader
-              title="Doctor workload"
-              description="Operational appointment volume"
+              title={t("dashboard.doctorWorkload")}
+              description={t("dashboard.operationalVolume")}
             />
             <div className="divide-y divide-[#e3ebe9] px-5">
               {data.top_doctors.map((item) => (
                 <div className="flex justify-between py-3" key={item.doctor}>
                   <span className="text-sm font-medium">{item.doctor}</span>
                   <span className="text-sm tabular text-[#52656e]">
-                    {item.appointments} appointments
+                    {t("dashboard.appointmentCount",{count:item.appointments})}
                   </span>
                 </div>
               ))}
@@ -255,6 +206,7 @@ function ClinicDashboard() {
   );
 }
 function RoleActions({ role }: { role: string }) {
+  const {t}=useI18n();
   if (role === "owner")
     return (
       <>
@@ -263,7 +215,7 @@ function RoleActions({ role }: { role: string }) {
           href="/staff"
         >
           <UserRoundPlus size={16} />
-          Manage staff
+          {t("dashboard.manageStaff")}
         </Link>
         <NewAppointment />
       </>
@@ -276,7 +228,7 @@ function RoleActions({ role }: { role: string }) {
           href="/queue"
         >
           <Clock3 size={16} />
-          Open queue
+          {t("dashboard.openQueue")}
         </Link>
         <NewAppointment />
       </>
@@ -289,21 +241,23 @@ function RoleActions({ role }: { role: string }) {
           href="/patients"
         >
           <Search size={16} />
-          Find patient
+          {t("dashboard.findPatient")}
         </Link>
         <NewAppointment />
       </>
     );
+  if(role==="nurse")return <Link className="inline-flex h-10 items-center gap-2 rounded-[4px] border border-[#b9cbc6] bg-white px-4 text-sm font-semibold text-[#314854]" href="/queue"><Clock3 size={16}/>{t("dashboard.openQueue")}</Link>;
   return null;
 }
 function NewAppointment() {
+  const {t}=useI18n();
   return (
     <Link
       href="/appointments/new"
       className="inline-flex h-10 items-center gap-2 rounded-[4px] bg-[#167d78] px-4 text-sm font-semibold text-white"
     >
       <CalendarPlus size={16} />
-      New appointment
+      {t("appointments.new")}
     </Link>
   );
 }
@@ -317,6 +271,7 @@ type PharmacySummary = {
   pending_purchase_orders: number;
 };
 function PharmacyDashboard() {
+  const {t}=useI18n();
   const { data, loading, error } = useApi<PharmacySummary>(
     "/pharmacy/dashboard",
   );
@@ -325,51 +280,19 @@ function PharmacyDashboard() {
   return (
     <>
       <PageHeader
-        title={headings.pharmacist[0]}
-        description={headings.pharmacist[1]}
+        title={t(headings.pharmacist[0])}
+        description={t(headings.pharmacist[1])}
         actions={
           <Link
             href="/pharmacy/prescriptions"
             className="inline-flex h-10 items-center gap-2 rounded-[4px] bg-[#167d78] px-4 text-sm font-semibold text-white"
           >
             <Pill size={16} />
-            Dispensing queue
+            {t("pharmacy.dispensingQueue")}
           </Link>
         }
       />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          ["Awaiting dispensing", data.awaiting_dispensing, Pill],
-          ["Low stock", data.low_stock, ShieldAlert],
-          ["Near expiry", data.near_expiry, FileClock],
-          ["Expired — blocked", data.expired, ShieldAlert],
-          ["Out of stock", data.out_of_stock, ShieldAlert],
-          ["Dispensed today", data.today_dispensing, Pill],
-          ["Pending purchases", data.pending_purchase_orders, FileClock],
-        ].map(([label, value, Icon]: any[]) => (
-          <Card
-            className="border-t-3 border-t-[#167d78] p-4"
-            key={String(label)}
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#52656e]">
-                {String(label)}
-              </p>
-              <Icon
-                size={17}
-                className={
-                  String(label).includes("Expired")
-                    ? "text-[#b74242]"
-                    : "text-[#167d78]"
-                }
-              />
-            </div>
-            <p className="mt-3 text-2xl font-semibold tabular text-[#163c52]">
-              {String(value)}
-            </p>
-          </Card>
-        ))}
-      </div>
+      <MetricStrip items={[{label:t("pharmacy.awaitingDispensing"),value:data.awaiting_dispensing},{label:t("pharmacy.lowStockShort"),value:data.low_stock,tone:"warning"},{label:t("pharmacy.nearExpiryShort"),value:data.near_expiry,tone:"warning"},{label:t("pharmacy.expiredBlocked"),value:data.expired,tone:"danger"},{label:t("pharmacy.outOfStock"),value:data.out_of_stock,tone:"danger"},{label:t("pharmacy.dispensedToday"),value:data.today_dispensing},{label:t("pharmacy.pendingPurchases"),value:data.pending_purchase_orders}]} />
       <div className="mt-5 grid gap-4 sm:grid-cols-3">
         <Link
           href="/pharmacy/stock"

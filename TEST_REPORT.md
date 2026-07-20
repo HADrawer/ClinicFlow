@@ -1,54 +1,77 @@
 # ClinicFlow test report
 
-Date: 2026-07-13 (Asia/Bahrain)
+Current frontend validation: 2026-07-15 (Asia/Bahrain)
 
-## Verified results
+## Current frontend results
 
 | Area | Command | Result |
 |---|---|---|
-| Backend lint | `cd backend && ../.venv/bin/ruff check app tests` | Passed; no findings |
-| Backend format | `cd backend && ../.venv/bin/ruff format --check app tests` | Passed; 33 files formatted |
-| Backend tests | `cd backend && PYTHONPATH=. ../.venv/bin/pytest -q` | Passed; 22 tests |
 | Frontend lint | `cd frontend && npm run lint` | Passed |
 | Frontend types | `cd frontend && npm run typecheck` | Passed |
-| Component tests | `cd frontend && npm test -- --run` | Passed; 2 files, 3 tests |
-| Production build | `cd frontend && npm run build` | Passed; 32 routes generated/validated |
-| Dependency audit | `cd frontend && npm audit --audit-level=low` | Passed; 0 vulnerabilities |
-| Clean migration/seed | SQLite database in `/tmp`, `alembic upgrade head`, `python -m app.seed`, `alembic current` | Passed; head `0003_documents_quality`, 2 clinics/10 users/25 patients seeded |
-| Browser E2E | `cd frontend && PLAYWRIGHT_CHROMIUM_PATH=… npm run test:e2e` | Passed; 4 journeys |
-| Accessibility | Axe WCAG 2 A/AA, 2.1 AA, and 2.2 AA tags on owner dashboard | Passed; 0 serious or critical violations |
-| Responsive overflow | Automated `documentElement.scrollWidth <= viewport` assertion | Passed at all four required widths |
-| Docker | `docker compose config --quiet`, image build, `docker compose up -d` | Passed; PostgreSQL healthy, migrations/seed started, API/web healthy, owner login returned bearer token, logs contained no errors |
+| Component tests | `cd frontend && npm test -- --run` | Passed; 3 files, 5 tests |
+| Production build | `cd frontend && npm run build` | Passed; 32 routes generated |
+| Browser E2E | `cd frontend && PLAYWRIGHT_CHROMIUM_PATH=/home/hashem/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome npm run test:e2e` | Passed; 6 journeys in 1.8 minutes |
+| Accessibility | Axe scan in the core owner journey | Passed; no serious or critical findings |
+| Responsive overflow | Automated page-width assertion | Passed at 1440, 1280, 768, and 390 px |
 
-FastAPI/Python emitted 211 upstream `asyncio.iscoroutinefunction` deprecation warnings during pytest; they did not fail tests. The test browser emitted Node/module deprecation notices only.
+The final E2E result is from one uninterrupted run after clearing the generated `.next`
+directory. The suite ran its configured clean migration and seed setup before exercising
+the application.
 
-The first complete Compose build passed. A later final-image Compose rebuild twice hit an external npm registry idle timeout; the same final Dockerfile then built successfully with `docker build --network=host -t clinicflow-frontend:latest frontend`, after which Compose startup, health, login, and log checks passed. The Dockerfile now uses deterministic `npm ci` with a BuildKit npm cache and retry/timeouts.
+## Browser journeys passed
 
-## Browser journeys
+1. Owner invites Doctor B; the doctor accepts the single-use invitation, manages an
+   appointment, finalizes an encounter, creates a follow-up, and is disabled/reactivated.
+2. Receptionist registers a patient, books and checks in an appointment, moves the
+   patient through the queue, and reaches invoice creation.
+3. Pharmacist creates a purchase order, receives a dated batch, verifies stock, dispenses
+   an open prescription, and reaches the immutable label preview.
+4. Cross-tenant patient access is blocked, disabled pharmacy navigation/API behavior is
+   respected, all required responsive widths avoid page overflow, and the core owner Axe
+   scan has no serious or critical findings.
+5. Arabic persists after refresh; RTL navigation, forms, dashboard, appointment list,
+   table behavior, and switching back to English work.
+6. Every seeded role reaches a distinct, permitted workspace with role-appropriate
+   navigation.
 
-1. Owner invited Doctor B with profile/service/license data; Doctor B accepted the single-use link, set a password, logged in, managed status/queue steps, finalized an immutable encounter, and booked a follow-up. Owner disable blocked login and reactivation restored the account.
-2. Receptionist registered a patient with allergy/consent data, booked and checked in an appointment, moved the patient through the queue, and reached invoice creation.
-3. Pharmacist created a purchase order, received a dated batch, verified stock, dispensed an open prescription, and reached the immutable label preview.
-4. Direct cross-clinic patient access returned 404; the second clinic hid pharmacy navigation and its pharmacy API returned 404.
+## Visual captures inspected
 
-Backend tests additionally verify every seeded role login, invitation expiry/revocation/single use, session revocation, scheduling conflicts and history, immutable encounter amendments, partial/full/idempotent dispensing, failed-transaction stock rollback, expired stock blocking, secure document consent/download/tenant isolation, quality records, and audit events.
+- `frontend/test-results/screenshots/desktop-1440-dashboard.png`
+- `frontend/test-results/screenshots/desktop-1440-dashboard-ar.png`
+- `frontend/test-results/screenshots/desktop-1280-dashboard.png`
+- `frontend/test-results/screenshots/tablet-768-dashboard.png`
+- `frontend/test-results/screenshots/tablet-768-patient-form-ar.png`
+- `frontend/test-results/screenshots/mobile-390-dashboard.png`
+- `frontend/test-results/screenshots/mobile-390-patient-form-ar.png`
+- `frontend/test-results/screenshots/desktop-appointments.png`
+- `frontend/test-results/screenshots/desktop-appointments-ar.png`
+- `frontend/test-results/screenshots/desktop-staff.png`
 
-## Inspected screenshots
+The final review verified the Clinical Current visual hierarchy, Arabic RTL sidebar
+placement, readable internal table scrolling at 390 px, mobile dashboard containment,
+and dense desktop scheduling and staff layouts.
 
-- `frontend/test-results/screenshots/desktop-1440-dashboard.png` — 1440 × 900 viewport
-- `frontend/test-results/screenshots/desktop-1280-dashboard.png` — 1280 × 800 viewport
-- `frontend/test-results/screenshots/tablet-768-dashboard.png` — 768 × 1024 viewport
-- `frontend/test-results/screenshots/mobile-390-dashboard.png` — 390 × 844 viewport
-- `frontend/test-results/screenshots/desktop-appointments.png` — loaded week calendar
-- `frontend/test-results/screenshots/desktop-staff.png` — loaded staff lifecycle table
+## Historical backend and deployment evidence
 
-The captures were visually inspected. Contrast was increased after the first Axe run, loading-state-only captures were replaced, table containment was corrected, and the 390 px dashboard now has no page-level horizontal overflow. Wide operational tables retain compact desktop density and use wrapped/hidden secondary columns on narrow screens.
+The following checks were executed on 2026-07-13 and are retained as historical results.
+They were not rerun on 2026-07-15 because the current task changed frontend files only.
 
-## Remaining limitations
+| Area | Historical result (2026-07-13) |
+|---|---|
+| Backend Ruff lint/format | Passed; 33 files formatted and no findings |
+| Backend pytest | Passed; 22 tests |
+| Frontend dependency audit | Passed; 0 vulnerabilities |
+| Clean migration/seed | Passed at head `0003_documents_quality`; 2 clinics, 10 users, 25 patients |
+| Docker configuration/build/startup | Passed; PostgreSQL, migrations/seed, API, and web healthy |
 
-- Email/SMS/WhatsApp delivery is mocked; development returns invitation and reset links directly.
-- Private documents use local filesystem storage. Production still needs encrypted object storage, malware scanning, retention/backup policy, and managed keys.
-- Axe covered the core owner dashboard and browser journeys exercised core controls, but this is not a claim of complete WCAG or legal/regulatory certification.
-- The environment’s Playwright-managed Chromium 140 installer stalled after download, so browser verification used the already-installed Chromium 149 binary through `PLAYWRIGHT_CHROMIUM_PATH`.
-- Arabic-compatible fonts and initial RTL scaffolding exist; full translation and clinical RTL QA are not complete.
-- Pharmacy features do not replace statutory registers or professional/jurisdictional controls.
+## Skipped and limitations
+
+- Backend lint/tests, Docker, and infrastructure validation were skipped in the current
+  frontend-only continuation; no backend or infrastructure file was modified.
+- Axe coverage is targeted and is not a complete WCAG, legal, or clinical compliance
+  certification.
+- Email/SMS/WhatsApp delivery is mocked, private documents use local filesystem storage,
+  and pharmacy features do not replace statutory or jurisdictional controls.
+- Legacy routes still pass visible text through the central compatibility translator;
+  direct structured-key migration remains code-level localization debt. The tested
+  Arabic journeys displayed translated content with correct document direction.

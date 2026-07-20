@@ -1,6 +1,6 @@
 "use client";
 import { FormEvent, useState } from "react";
-import { AlertTriangle, Boxes, SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { shortDate } from "@/lib/utils";
@@ -12,6 +12,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { Modal } from "@/components/ui/modal";
 import { Field, Input } from "@/components/ui/input";
 import { ErrorMessage, Loading } from "@/components/ui/feedback";
+import {MetricStrip} from "@/components/ui/metric-strip";
 type Batch = {
   id: number;
   medicine_id: number;
@@ -43,62 +44,7 @@ export default function Stock() {
         description="Expiry-first inventory with immutable movement trace and no negative stock."
       />
       <ErrorMessage message={stock.error || medicines.error} />
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        {[
-          [
-            "Available units",
-            (stock.data || []).reduce(
-              (sum, item) => sum + item.quantity_available,
-              0,
-            ),
-            Boxes,
-          ],
-          [
-            "Expired units",
-            (stock.data || [])
-              .filter((item) => new Date(item.expiry_date) <= new Date())
-              .reduce((sum, item) => sum + item.quantity_available, 0),
-            AlertTriangle,
-          ],
-          [
-            "Low-stock medicines",
-            (medicines.data || []).filter(
-              (medicine) =>
-                (stock.data || [])
-                  .filter(
-                    (batch) =>
-                      batch.medicine_id === medicine.id &&
-                      new Date(batch.expiry_date) > new Date(),
-                  )
-                  .reduce((sum, batch) => sum + batch.quantity_available, 0) <=
-                medicine.reorder_level,
-            ).length,
-            AlertTriangle,
-          ],
-        ].map(([label, value, Icon]: any[]) => (
-          <Card
-            className="border-t-3 border-t-[#167d78] p-4"
-            key={String(label)}
-          >
-            <div className="flex justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#52656e]">
-                {String(label)}
-              </p>
-              <Icon
-                size={17}
-                className={
-                  String(label).includes("Expired")
-                    ? "text-[#b74242]"
-                    : "text-[#167d78]"
-                }
-              />
-            </div>
-            <p className="mt-2 text-2xl font-semibold tabular">
-              {String(value)}
-            </p>
-          </Card>
-        ))}
-      </div>
+      <MetricStrip className="mb-4" items={[{label:"Available units",value:(stock.data||[]).reduce((sum,item)=>sum+item.quantity_available,0)},{label:"Expired units",value:(stock.data||[]).filter(item=>new Date(item.expiry_date)<=new Date()).reduce((sum,item)=>sum+item.quantity_available,0),tone:"danger"},{label:"Low-stock medicines",value:(medicines.data||[]).filter(medicine=>(stock.data||[]).filter(batch=>batch.medicine_id===medicine.id&&new Date(batch.expiry_date)>new Date()).reduce((sum,batch)=>sum+batch.quantity_available,0)<=medicine.reorder_level).length,tone:"warning"}]}/>
       <Card>
         <DataTable
           rows={stock.data || []}

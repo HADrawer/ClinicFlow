@@ -5,5 +5,11 @@ export default defineConfig([
   ...nextVitals,
   ...nextTs,
   {rules:{"@typescript-eslint/no-explicit-any":"off","react-hooks/set-state-in-effect":"off"}},
-  globalIgnores([".next/**","next-env.d.ts"])
+  globalIgnores([
+    ".next/**",
+    "next-env.d.ts",
+    "playwright-report/**",
+    "test-results/**",
+    "coverage/**",
+  ])
 ]);

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { ErrorMessage, Loading } from "@/components/ui/feedback";
+import {MetricStrip} from "@/components/ui/metric-strip";
 type Queue = {
   id: number;
   appointment_id: number;
@@ -43,35 +44,7 @@ export default function QueuePage() {
         description="Arrival order, wait duration, room and next clinical action without unnecessary clinical detail."
       />
       <ErrorMessage message={queue.error || appointments.error} />
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        {[
-          [
-            "Waiting now",
-            queue.data?.filter((item) => item.status === "waiting").length || 0,
-          ],
-          [
-            "In progress",
-            queue.data?.filter((item) => item.status === "in_progress")
-              .length || 0,
-          ],
-          [
-            "Longest wait",
-            `${Math.max(0, ...(queue.data || []).filter((item) => item.status === "waiting").map((item) => Math.floor((now - new Date(item.arrived_at).getTime()) / 60000)))} min`,
-          ],
-        ].map(([label, value]) => (
-          <div
-            className="border-t-3 border-[#167d78] bg-white p-4 shadow-[0_1px_2px_rgba(16,33,43,.04)]"
-            key={label}
-          >
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#52656e]">
-              {label}
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular text-[#163c52]">
-              {value}
-            </p>
-          </div>
-        ))}
-      </div>
+      <MetricStrip className="mb-4" items={[{label:"Waiting now",value:queue.data?.filter(item=>item.status==="waiting").length||0,tone:"warning"},{label:"In progress",value:queue.data?.filter(item=>item.status==="in_progress").length||0},{label:"Longest wait",value:`${Math.max(0,...(queue.data||[]).filter(item=>item.status==="waiting").map(item=>Math.floor((now-new Date(item.arrived_at).getTime())/60000)))} min`,tone:"warning"}]}/>
       <Card>
         <CardHeader
           title="Current arrivals"

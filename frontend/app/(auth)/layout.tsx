@@ -1,2 +1,29 @@
+"use client";
+
 import {Activity,CheckCircle2,ShieldCheck} from "lucide-react";
-export default function AuthLayout({children}:{children:React.ReactNode}){return <main id="main-content" className="grid min-h-screen bg-white lg:grid-cols-[minmax(440px,.82fr)_1.18fr]"><section className="flex items-center justify-center border-r border-[#d6e1de] p-6 sm:p-10">{children}</section><aside className="clinical-grid relative hidden overflow-hidden bg-[#0d2c3d] p-12 text-white lg:flex lg:flex-col lg:justify-between"><div className="absolute inset-y-0 right-0 w-2 bg-[#167d78]"/><div><div className="flex items-center gap-2.5 text-xl font-semibold"><span className="grid h-9 w-9 place-items-center rounded-[4px] bg-[#167d78]"><Activity size={21}/></span>ClinicFlow</div><div className="mt-24 max-w-xl"><p className="text-xs font-semibold uppercase tracking-[.18em] text-[#87bbb8]">Clinical Current</p><h1 className="mt-4 text-[2.65rem] font-semibold leading-[1.08] tracking-[-.035em]">One precise current for every patient journey.</h1><p className="mt-5 max-w-lg text-base leading-7 text-[#c7d9dd]">Scheduling, clinical records, front desk, revenue and pharmacy—connected without hiding patient-safety context.</p><div className="mt-10 grid gap-4 text-sm text-[#dbe8ea]">{["Tenant-scoped records and permissions","Immutable finalized clinical notes","Batch-level pharmacy traceability"].map(x=><div className="flex items-center gap-3" key={x}><CheckCircle2 size={17} className="text-[#55b9b2]"/>{x}</div>)}</div></div></div><div className="flex items-center gap-2 border-t border-white/10 pt-5 text-xs text-[#9bb9c0]"><ShieldCheck size={15}/>Development workspace · No production clinical data</div></aside></main>}
+import {LanguageSwitcher,useI18n} from "@/lib/i18n";
+
+export default function AuthLayout({children}:{children:React.ReactNode}){
+  const {t}=useI18n();
+  const assurances=["auth.tenantScope","auth.immutableNotes","auth.batchTraceability"];
+
+  return <main id="main-content" className="grid min-h-screen bg-white lg:grid-cols-[minmax(440px,.82fr)_1.18fr]">
+    <section className="relative flex items-center justify-center border-e border-[#d6e1de] p-6 sm:p-10">
+      <div className="absolute end-5 top-5"><LanguageSwitcher/></div>
+      {children}
+    </section>
+    <aside className="relative hidden overflow-hidden bg-[#0d2c3d] p-12 text-white lg:flex lg:flex-col lg:justify-between">
+      <div className="absolute inset-y-0 end-0 w-2 bg-[#167d78]"/>
+      <div>
+        <div className="flex items-center gap-2.5 text-xl font-semibold"><span className="grid h-9 w-9 place-items-center rounded-[4px] bg-[#167d78]"><Activity size={21}/></span>{t("app.name")}</div>
+        <div className="mt-24 max-w-xl">
+          <p className="text-xs font-semibold uppercase tracking-[.18em] text-[#87bbb8]">{t("app.clinicalCurrent")}</p>
+          <h1 className="mt-4 text-[2.65rem] font-semibold leading-[1.08] tracking-[-.035em]">{t("auth.onePatientJourney")}</h1>
+          <p className="mt-5 max-w-lg text-base leading-7 text-[#c7d9dd]">{t("auth.productSummary")}</p>
+          <div className="mt-10 grid gap-4 text-sm text-[#dbe8ea]">{assurances.map(key=><div className="flex items-center gap-3" key={key}><CheckCircle2 size={17} className="text-[#55b9b2]"/>{t(key)}</div>)}</div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 border-t border-white/10 pt-5 text-xs text-[#9bb9c0]"><ShieldCheck size={15}/>{t("app.developmentWorkspace")}</div>
+    </aside>
+  </main>;
+}
