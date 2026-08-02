@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from .config import settings
 from .routers import (
     analytics,
@@ -30,14 +31,27 @@ app = FastAPI(
     docs_url="/docs",
     openapi_url="/api/openapi.json",
 )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=[
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "OPTIONS",
+    ],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Accept",
+    ],
 )
-for router in [
+
+routers = [
     auth.router,
     clinics.router,
     staff.router,
@@ -57,10 +71,25 @@ for router in [
     analytics.router,
     settings_router.router,
     audit_logs.router,
-]:
+]
+
+for router in routers:
     app.include_router(router, prefix="/api")
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    return {
+        "service": "clinicflow-api",
+        "status": "running",
+        "health": "/health",
+        "docs": "/docs",
+    }
 
 
 @app.get("/health", tags=["System"])
 def health():
-    return {"status": "ok", "service": "clinicflow-api"}
+    return {
+        "status": "ok",
+        "service": "clinicflow-api",
+    }
