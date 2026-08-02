@@ -5,14 +5,15 @@ import {usePathname,useRouter} from "next/navigation";
 import {useEffect,useMemo,useState} from "react";
 import {
   Activity,CalendarDays,ChevronDown,ClipboardList,Clock3,CreditCard,
-  FileChartColumn,FlaskConical,LayoutDashboard,LogOut,Menu,MessageCircle,
-  ListPlus,Pill,Settings,ShieldCheck,Stethoscope,Users,UsersRound,X,
+  FileChartColumn,FlaskConical,LayoutDashboard,ListPlus,LogOut,Menu,
+  MessageCircle,Pill,Settings,ShieldCheck,Stethoscope,Users,UsersRound,X,
 } from "lucide-react";
 import {useAuth} from "@/lib/auth";
 import {cn,titleCase} from "@/lib/utils";
 import type {Role} from "@/lib/types";
 import {Loading} from "@/components/ui/feedback";
 import {LanguageSwitcher,useI18n} from "@/lib/i18n";
+import {ThemeSwitcher} from "@/lib/theme";
 
 type NavItem={href:string;labelKey:string;icon:typeof Activity;roles:Role[];pharmacy?:boolean};
 const groups:{labelKey:string;items:NavItem[]}[]=[
@@ -39,12 +40,8 @@ const groups:{labelKey:string;items:NavItem[]}[]=[
 ];
 
 const roleContext:Record<Role,string>={
-  owner:"role.ownerContext",
-  doctor:"role.doctorContext",
-  receptionist:"role.receptionContext",
-  accountant:"role.accountantContext",
-  nurse:"role.nurseContext",
-  pharmacist:"role.pharmacistContext",
+  owner:"role.ownerContext",doctor:"role.doctorContext",receptionist:"role.receptionContext",
+  accountant:"role.accountantContext",nurse:"role.nurseContext",pharmacist:"role.pharmacistContext",
 };
 
 export function AppShell({children}:{children:React.ReactNode}){
@@ -54,30 +51,78 @@ export function AppShell({children}:{children:React.ReactNode}){
   const router=useRouter();
   const [mobile,setMobile]=useState(false);
   const [profile,setProfile]=useState(false);
+
   useEffect(()=>{if(!loading&&!user)router.replace("/login")},[loading,user,router]);
-  useEffect(()=>{setMobile(false)},[path]);
-  const visible=useMemo(()=>groups.map(group=>({...group,items:group.items.filter(item=>user&&(item.roles.includes(user.role)&&(!item.pharmacy||user.clinic?.pharmacy_enabled)))})).filter(group=>group.items.length),[user]);
-  if(loading||!user)return <div className="min-h-screen bg-white"><Loading label="Opening ClinicFlow…"/></div>;
-  return <div className="min-h-screen bg-[#f5f7f6]">
-    <header className="fixed inset-x-0 top-0 z-30 flex h-16 items-center border-b border-[#d6e1de] bg-white px-3 lg:pe-6 lg:ps-[268px]">
-      <button className="me-2 rounded-[4px] p-2 text-[#526973] hover:bg-[#edf3f1] lg:hidden" onClick={()=>setMobile(true)} aria-label={t("accessibility.openNavigation")}><Menu size={21}/></button>
+  useEffect(()=>{setMobile(false);setProfile(false)},[path]);
+  const visible=useMemo(()=>groups
+    .map(group=>({...group,items:group.items.filter(item=>user&&item.roles.includes(user.role)&&(!item.pharmacy||user.clinic?.pharmacy_enabled))}))
+    .filter(group=>group.items.length),[user]);
+
+  if(loading||!user)return <div className="min-h-screen bg-[var(--canvas)]"><Loading label={t("common.openingClinicFlow")}/></div>;
+  const initials=user.full_name.split(" ").map(part=>part[0]).slice(0,2).join("");
+
+  return <div className="app-frame">
+    <header className="app-topbar lg:ps-[280px] lg:pe-6">
+      <button className="desktop-hidden topbar-button me-2 lg:hidden" onClick={()=>setMobile(true)} aria-label={t("accessibility.openNavigation")}><Menu size={20}/></button>
       <div className="flex min-w-0 flex-1 items-center justify-between gap-4">
-        <div className="min-w-0"><div className="flex items-center gap-2"><span className="truncate text-sm font-semibold text-[#163c52]">{user.clinic?.name||t("app.name")}</span><span className="hidden h-1 w-1 bg-[#167d78] sm:block"/><span className="hidden text-xs font-medium uppercase tracking-[.08em] text-[#52656e] sm:block">{t(roleContext[user.role])}</span></div><p className="hidden truncate text-[11px] text-[#52656e] md:block">{t("common.currentSession")} · {label(titleCase(user.role))}</p></div>
-        <div className="flex items-center gap-1"><LanguageSwitcher compact/><div className="relative"><button aria-expanded={profile} onClick={()=>setProfile(!profile)} className="flex items-center gap-2 rounded-[4px] border border-transparent px-2 py-1.5 hover:border-[#d6e1de] hover:bg-[#f8faf9]"><span className="flex h-8 w-8 items-center justify-center rounded-[3px] bg-[#ddeeea] text-xs font-bold text-[#0f625f]">{user.full_name.split(" ").map(x=>x[0]).slice(0,2).join("")}</span><span className="hidden text-start sm:block"><span className="block text-sm font-medium text-[#10212b]">{user.full_name}</span><span className="block text-[11px] text-[#52656e]">{label(titleCase(user.role))}</span></span><ChevronDown size={15} className="text-[#52656e]"/></button>{profile&&<div className="absolute end-0 top-12 w-60 rounded-[5px] border border-[#cbdad6] bg-white p-1 shadow-xl"><div className="border-b border-[#e3ebe9] px-3 py-2.5 text-xs text-[#52656e]"><p className="font-semibold text-[#314854]">{t("common.currentSession")}</p><p className="mt-1 truncate" dir="ltr">{user.email}</p></div><button onClick={logout} className="mt-1 flex w-full items-center gap-2 rounded-[3px] px-3 py-2 text-sm text-[#a33737] hover:bg-[#fff2f0]"><LogOut size={16}/>{t("common.signOut")}</button></div>}</div></div>
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm font-bold text-[var(--clinical-navy)]">{user.clinic?.name||t("app.name")}</span>
+            <span className="hidden h-1 w-1 shrink-0 bg-[var(--gulf-teal)] sm:block"/>
+            <span className="hidden truncate text-[11px] font-bold uppercase tracking-[.1em] text-[var(--ink-500)] sm:block">{t(roleContext[user.role])}</span>
+          </div>
+          <p className="hidden truncate text-[11px] text-[var(--ink-500)] md:block">{t("common.currentSession")} · {label(titleCase(user.role))}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <ThemeSwitcher label={t}/>
+          <LanguageSwitcher compact/>
+          <div className="relative">
+            <button aria-expanded={profile} aria-haspopup="menu" onClick={()=>setProfile(current=>!current)} className="topbar-button">
+              <span className="topbar-avatar">{initials}</span>
+              <span className="hidden min-w-0 text-start sm:block">
+                <span className="block max-w-44 truncate text-sm font-semibold text-[var(--ink-950)]">{user.full_name}</span>
+                <span className="block text-[11px] text-[var(--ink-500)]">{label(titleCase(user.role))}</span>
+              </span>
+              <ChevronDown size={15} className="text-[var(--ink-500)]"/>
+            </button>
+            {profile&&<div className="profile-menu" role="menu">
+              <div className="border-b border-[var(--line)] px-4 py-3 text-xs text-[var(--ink-500)]">
+                <p className="font-bold text-[var(--ink-700)]">{t("common.currentSession")}</p>
+                <p className="mt-1 truncate" dir="ltr">{user.email}</p>
+              </div>
+              <button role="menuitem" onClick={logout} className="flex min-h-11 w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-[var(--danger)] hover:bg-[var(--surface-secondary)]">
+                <LogOut size={16}/>{t("common.signOut")}
+              </button>
+            </div>}
+          </div>
+        </div>
       </div>
     </header>
-    <aside className={cn("fixed inset-y-0 start-0 z-40 w-[252px] border-e border-[#25495b] bg-[#0d2c3d] text-white transition-transform lg:translate-x-0",mobile?"translate-x-0":isRtl?"translate-x-full":"-translate-x-full")}>
-      <div className="flex h-16 items-center justify-between border-b border-white/10 px-5"><Link href="/dashboard" className="flex items-center gap-2.5 font-semibold tracking-[-.01em]"><span className="grid h-8 w-8 place-items-center rounded-[4px] bg-[#167d78]"><Activity size={19}/></span><span>{t("app.name")}</span></Link><button className="rounded p-2 lg:hidden" onClick={()=>setMobile(false)} aria-label={t("accessibility.closeNavigation")}><X size={20}/></button></div>
-      <nav aria-label={t("accessibility.primaryNavigation")} className="scrollbar h-[calc(100vh-112px)] overflow-y-auto px-3 py-4">{visible.map(group=><div className="mb-5" key={group.labelKey}><p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[.16em] text-[#8db0ba]">{t(group.labelKey)}</p>{group.items.map(item=>{const active=path===item.href||path.startsWith(item.href+"/");const Icon=item.icon;return <Link key={item.href} href={item.href} aria-current={active?"page":undefined} className={cn("mb-0.5 flex items-center gap-3 rounded-[3px] border-s-2 px-3 py-2 text-sm font-medium",active?"border-[#42aaa3] bg-white/10 text-white":"border-transparent text-[#c7d9dd] hover:bg-white/[.06] hover:text-white")}><Icon size={17}/>{t(item.labelKey)}</Link>})}</div>)}</nav>
-      <div className="absolute inset-x-0 bottom-0 border-t border-white/10 bg-[#0a2736] px-4 py-3"><div className="flex items-center gap-2 text-[11px] text-[#9bb9c0]"><Stethoscope size={14}/>{t("app.clinicianLed")}</div></div>
+
+    <aside className={cn("app-sidebar lg:translate-x-0",mobile?"translate-x-0":isRtl?"translate-x-full":"-translate-x-full")}>
+      <div className="app-brand">
+        <Link href="/dashboard" className="flex items-center gap-2.5 font-bold tracking-[-.01em] text-[var(--clinical-navy)]">
+          <span className="app-brand__mark"><Activity size={19}/></span>
+          <span>{t("app.name")}</span>
+        </Link>
+        <button className="desktop-hidden topbar-button lg:hidden" onClick={()=>setMobile(false)} aria-label={t("accessibility.closeNavigation")}><X size={20}/></button>
+      </div>
+      <nav aria-label={t("accessibility.primaryNavigation")} className="app-nav scrollbar">
+        {visible.map(group=><div className="app-nav__group" key={group.labelKey}>
+          <p className="app-nav__label">{t(group.labelKey)}</p>
+          {group.items.map(item=>{
+            const active=path===item.href||path.startsWith(item.href+"/");
+            const Icon=item.icon;
+            return <Link key={item.href} href={item.href} aria-current={active?"page":undefined} className="app-nav__item">
+              <Icon size={17}/><span>{t(item.labelKey)}</span>
+            </Link>;
+          })}
+        </div>)}
+      </nav>
+      <div className="app-sidebar__foot"><div className="flex items-center gap-2 text-[11px]"><Stethoscope size={14}/>{t("app.clinicianLed")}</div></div>
     </aside>
-    {mobile&&(
-      <button
-        className="fixed inset-0 z-30 bg-[#10212b]/45 lg:hidden"
-        onClick={()=>setMobile(false)}
-        aria-label={t("accessibility.closeOverlay")}
-      />
-    )}
-    <main id="main-content" className="min-h-screen pt-16 lg:ps-[252px]"><div className="mx-auto max-w-[1600px] p-3 sm:p-5 lg:p-6">{children}</div></main>
+
+    {mobile&&<button className="fixed inset-0 z-30 bg-[#20283a]/55 lg:hidden" onClick={()=>setMobile(false)} aria-label={t("accessibility.closeOverlay")}/>}
+    <main id="main-content" className="app-main lg:ps-[260px]"><div className="app-workspace sm:p-5 lg:p-8">{children}</div></main>
   </div>;
 }

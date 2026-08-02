@@ -76,6 +76,8 @@ Schema changes must be made through Alembic. The expansion migrations preserve e
 - Duplicate-patient warning, persistent safety/allergy context, finalized immutable SOAP notes, amendments, follow-up, lab/imaging orders, referrals, consents, private attachments, complaints, and incidents
 - Optional pharmacy with backend feature gating, catalog, suppliers, purchase orders, goods receipt, batches, expiry/low-stock alerts, stock counts/adjustments, movements, FEFO suggestions, partial/full dispensing, clarification, label preview, and reports
 - Role-specific Clinical Current dashboards and navigation for owner, doctor, receptionist, nurse, accountant, and pharmacist
+- Persisted light, dark, and system appearance modes with English/Arabic controls and theme-aware operational charts
+- Runtime English/Arabic switching with true LTR/RTL layout, localized clinical forms, tables, dates, states, and accessible labels
 - Backend-derived tenant scope on every protected workflow; the browser never supplies an authoritative `clinic_id`
 
 Feature flags are stored per clinic and managed under Settings. `pharmacy_enabled` controls both navigation and API access. Seeded flags also cover nursing triage, insurance, lab/imaging orders, consents, waitlist, Arabic support, and mock WhatsApp.
@@ -109,4 +111,4 @@ See `TEST_REPORT.md` for the latest verified results and screenshots.
 - Documents are private, tenant-scoped, MIME/size checked, stored outside public web paths, and downloaded through five-minute session-bound links. Production deployments still need encrypted object storage, malware scanning, backups, retention policy, and key management.
 - JWT session-version revocation is implemented; production deployments should add managed secrets, rate limiting, MFA where appropriate, monitoring, and tested backup/restore.
 - Pharmacy stock control is operational software only. It does not replace statutory registers, professional verification, or jurisdiction-specific reporting.
-- Arabic-compatible fonts and initial RTL foundations are present; full Arabic translation and clinical RTL QA remain deployment work.
+- Arabic and RTL are implemented and browser-tested for the seeded demo workflows. Production deployment still requires clinic-specific terminology review and native-speaker clinical QA.

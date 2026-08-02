@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 const password="password123";
 
 async function login(page:Page,email:string,secret=password){await page.goto("/login");await page.getByLabel("Email address").fill(email);await page.getByLabel("Password").fill(secret);await page.waitForTimeout(500);await page.getByRole("button",{name:"Sign in securely"}).click();await expect(page).toHaveURL(/\/dashboard$/)}
-async function logout(page:Page){await page.locator("header").getByRole("button").last().click();await page.getByRole("button",{name:"Sign out and revoke session"}).click();await expect(page).toHaveURL(/\/login$/)}
+async function logout(page:Page){await page.locator("header").getByRole("button").last().click();await page.getByRole("menuitem",{name:"Sign out and revoke session"}).click();await expect(page).toHaveURL(/\/login$/)}
 function localDateTime(days:number,hour:number){const value=new Date();value.setDate(value.getDate()+days);value.setHours(hour,0,0,0);const offset=value.getTimezoneOffset();return new Date(value.getTime()-offset*60_000).toISOString().slice(0,16)}
 async function assertNoSeriousAxe(page:Page){const result=await new AxeBuilder({page:page as any}).withTags(["wcag2a","wcag2aa","wcag21aa","wcag22aa"]).analyze();expect(result.violations.filter(item=>["critical","serious"].includes(item.impact||"")),JSON.stringify(result.violations,null,2)).toEqual([])}
 async function assertNoPageOverflow(page:Page){const result=await page.evaluate(()=>({viewport:window.innerWidth,documentWidth:document.documentElement.scrollWidth,offenders:[...document.querySelectorAll("body *")].map(element=>({element,rect:element.getBoundingClientRect()})).filter(item=>item.rect.right>window.innerWidth+1&&getComputedStyle(item.element).position!=="fixed").slice(0,12).map(item=>({tag:item.element.tagName,className:(item.element as HTMLElement).className,right:Math.round(item.rect.right),width:Math.round(item.rect.width)}))}));expect(result.documentWidth,JSON.stringify(result,null,2)).toBeLessThanOrEqual(result.viewport)}
@@ -138,6 +138,14 @@ test("tenant isolation, disabled pharmacy and responsive accessible core screens
   const token=await page.evaluate(()=>localStorage.getItem("clinicflow_token"));
   const foreign=await request.get("http://127.0.0.1:8000/api/patients/21",{headers:{Authorization:`Bearer ${token}`}});expect(foreign.status()).toBe(404);
   await assertNoSeriousAxe(page);
+  await page.getByRole("button",{name:"Switch to dark mode"}).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme","dark");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme","dark");
+  await expect(page.getByRole("heading").first()).toBeVisible();
+  await assertNoSeriousAxe(page);
+  await page.screenshot({path:"test-results/screenshots/desktop-1440-dashboard-dark.png",fullPage:true});
+  await page.getByRole("button",{name:"Switch to light mode"}).click();
   const captures=[{name:"desktop-1440",width:1440,height:900},{name:"desktop-1280",width:1280,height:800},{name:"tablet-768",width:768,height:1024},{name:"mobile-390",width:390,height:844}];
   for(const size of captures){await page.setViewportSize({width:size.width,height:size.height});await page.goto("/dashboard");await expect(page.getByRole("heading").first()).toBeVisible();await assertNoPageOverflow(page);await page.screenshot({path:`test-results/screenshots/${size.name}-dashboard.png`,fullPage:true})}
   await page.setViewportSize({width:1440,height:900});await page.goto("/appointments");await expect(page.getByRole("heading",{name:"Clinic schedule"})).toBeVisible();await page.screenshot({path:"test-results/screenshots/desktop-appointments.png",fullPage:true});await page.goto("/staff");await expect(page.getByRole("heading",{name:"Staff access"})).toBeVisible();await page.screenshot({path:"test-results/screenshots/desktop-staff.png",fullPage:true});

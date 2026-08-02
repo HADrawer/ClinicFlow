@@ -1,6 +1,6 @@
 # ClinicFlow test report
 
-Current frontend validation: 2026-07-15 (Asia/Bahrain)
+Current frontend validation: 2026-07-30 (Asia/Bahrain)
 
 ## Current frontend results
 
@@ -8,11 +8,12 @@ Current frontend validation: 2026-07-15 (Asia/Bahrain)
 |---|---|---|
 | Frontend lint | `cd frontend && npm run lint` | Passed |
 | Frontend types | `cd frontend && npm run typecheck` | Passed |
-| Component tests | `cd frontend && npm test -- --run` | Passed; 3 files, 5 tests |
-| Production build | `cd frontend && npm run build` | Passed; 32 routes generated |
-| Browser E2E | `cd frontend && PLAYWRIGHT_CHROMIUM_PATH=/home/hashem/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome npm run test:e2e` | Passed; 6 journeys in 1.8 minutes |
-| Accessibility | Axe scan in the core owner journey | Passed; no serious or critical findings |
+| Component tests | `cd frontend && npm test -- --run` | Passed; 4 files, 7 tests |
+| Production build | `cd frontend && npm run build` | Passed; 32 static pages generated and all listed routes compiled |
+| Browser E2E | `cd frontend && PLAYWRIGHT_CHROMIUM_PATH=/home/hashem/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome npx playwright test` | Passed; 6 journeys in 1.0 minute |
+| Accessibility | Axe scans in light and dark core owner journeys | Passed; no serious or critical findings |
 | Responsive overflow | Automated page-width assertion | Passed at 1440, 1280, 768, and 390 px |
+| Docker runtime | `docker compose config --quiet`, startup, health and reachability checks | Passed |
 
 The final E2E result is from one uninterrupted run after clearing the generated `.next`
 directory. The suite ran its configured clean migration and seed setup before exercising
@@ -33,10 +34,13 @@ the application.
    table behavior, and switching back to English work.
 6. Every seeded role reaches a distinct, permitted workspace with role-appropriate
    navigation.
+7. Light/dark choice persists through refresh; system mode remains available when no
+   manual choice exists.
 
 ## Visual captures inspected
 
 - `frontend/test-results/screenshots/desktop-1440-dashboard.png`
+- `frontend/test-results/screenshots/desktop-1440-dashboard-dark.png`
 - `frontend/test-results/screenshots/desktop-1440-dashboard-ar.png`
 - `frontend/test-results/screenshots/desktop-1280-dashboard.png`
 - `frontend/test-results/screenshots/tablet-768-dashboard.png`
@@ -47,9 +51,11 @@ the application.
 - `frontend/test-results/screenshots/desktop-appointments-ar.png`
 - `frontend/test-results/screenshots/desktop-staff.png`
 
-The final review verified the Clinical Current visual hierarchy, Arabic RTL sidebar
-placement, readable internal table scrolling at 390 px, mobile dashboard containment,
-and dense desktop scheduling and staff layouts.
+The final review verified the Clinical Current visual hierarchy in both themes, Arabic
+RTL sidebar placement, readable internal table scrolling at 390 px, mobile dashboard
+containment, visible desktop appointment statuses, and database-derived labeled chart
+bars. A dedicated dark patient-list hover check confirmed a slate row background
+(`rgb(61, 70, 95)`) and readable cyan patient link (`rgb(107, 200, 234)`).
 
 ## Historical backend and deployment evidence
 
@@ -66,12 +72,13 @@ They were not rerun on 2026-07-15 because the current task changed frontend file
 
 ## Skipped and limitations
 
-- Backend lint/tests, Docker, and infrastructure validation were skipped in the current
-  frontend-only continuation; no backend or infrastructure file was modified.
+- Backend lint/tests and Docker image builds were skipped in the current frontend-only
+  continuation; no backend or infrastructure file was modified. Existing Docker images
+  were started and all four services were verified running.
 - Axe coverage is targeted and is not a complete WCAG, legal, or clinical compliance
   certification.
 - Email/SMS/WhatsApp delivery is mocked, private documents use local filesystem storage,
   and pharmacy features do not replace statutory or jurisdictional controls.
-- Legacy routes still pass visible text through the central compatibility translator;
-  direct structured-key migration remains code-level localization debt. The tested
-  Arabic journeys displayed translated content with correct document direction.
+- Patient and appointment forms use direct structured keys. Some secondary legacy
+  routes still use the central compatibility translator; the tested Arabic journeys
+  displayed translated content with correct document direction.

@@ -7,6 +7,7 @@ import {
   FileText,
   Plus,
   Shield,
+  SunMoon,
   Stethoscope,
   UsersRound,
 } from "lucide-react";
@@ -22,6 +23,8 @@ import { Field, Input } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/data-table";
 import { ErrorMessage, Loading } from "@/components/ui/feedback";
 import { Modal } from "@/components/ui/modal";
+import { useI18n } from "@/lib/i18n";
+import { ThemePreferenceControl } from "@/lib/theme";
 type SettingsData = {
   services: Service[];
   insurance_companies: { id: number; name: string; active: boolean }[];
@@ -42,6 +45,7 @@ type Audit = {
   user: User;
 };
 const tabs = [
+  { id: "appearance", label: "Appearance", icon: SunMoon },
   { id: "clinic", label: "Clinic & flags", icon: Building2 },
   { id: "services", label: "Services", icon: Stethoscope },
   { id: "access", label: "Staff access", icon: UsersRound },
@@ -50,7 +54,8 @@ const tabs = [
   { id: "audit", label: "Audit log", icon: Clock3 },
 ];
 export default function Settings() {
-  const [tab, setTab] = useState("clinic");
+  const {t}=useI18n();
+  const [tab, setTab] = useState("appearance");
   const clinic = useApi<Clinic>("/clinics/me");
   const settings = useApi<SettingsData>("/settings");
   const audit = useApi<Audit[]>("/audit-logs");
@@ -71,7 +76,7 @@ export default function Settings() {
               <button
                 key={item.id}
                 onClick={() => setTab(item.id)}
-                className={`flex w-full items-center gap-3 rounded-[3px] border-l-2 px-3 py-2.5 text-left text-sm font-medium ${tab === item.id ? "border-[#167d78] bg-[#edf8f6] text-[#0f625f]" : "border-transparent text-[#526973] hover:bg-[#f5f7f6]"}`}
+                className={`flex w-full items-center gap-3 rounded-[3px] border-s-2 px-3 py-2.5 text-start text-sm font-medium ${tab === item.id ? "border-[var(--gulf-teal)] bg-[var(--teal-soft)] text-[var(--link)]" : "border-transparent text-[var(--ink-700)] hover:bg-[var(--surface-secondary)]"}`}
               >
                 <Icon size={17} />
                 {item.label}
@@ -80,6 +85,21 @@ export default function Settings() {
           })}
         </Card>
         <div>
+          {tab === "appearance" && (
+            <Card>
+              <CardHeader
+                title={t("theme.appearance")}
+                description={t("theme.workspaceDescription")}
+              />
+              <div className="max-w-xl p-6">
+                <p className="mb-3 text-sm font-medium text-[#314854]">{t("theme.appearance")}</p>
+                <ThemePreferenceControl label={t}/>
+                <p className="mt-3 text-xs leading-5 text-[#52656e]">
+                  {t("theme.systemDescription")}
+                </p>
+              </div>
+            </Card>
+          )}{" "}
           {tab === "clinic" && clinic.data && (
             <ClinicForm clinic={clinic.data} onSaved={clinic.reload} />
           )}{" "}

@@ -11,6 +11,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  LabelList,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -91,7 +92,7 @@ function ClinicDashboard() {
         actions={<RoleActions role={user!.role} />}
       />
       <MetricStrip items={stats} className="mb-5"/>
-      <div className="grid min-w-0 gap-5 xl:grid-cols-[1.55fr_.8fr]">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
         <Card>
           <CardHeader
             title={
@@ -114,7 +115,7 @@ function ClinicDashboard() {
               rows={data.upcoming_appointments}
               keyOf={(item) => item.id}
               columns={[
-                {key:"time",header:t("common.dateTime"),render:item=><Link className="font-semibold text-[#164e67]" href={`/appointments/${item.id}`}>{dateTime(item.time)}</Link>},
+                {key:"time",header:t("common.dateTime"),render:item=><Link className="data-link" href={`/appointments/${item.id}`}>{dateTime(item.time)}</Link>},
                 {key:"patient",header:t("common.patient"),render:item=>item.patient},
                 {key:"doctor",header:t("common.doctor"),className:"hidden md:table-cell",render:item=>item.doctor},
                 {key:"service",header:t("common.service"),className:"hidden md:table-cell",render:item=>item.service},
@@ -136,10 +137,10 @@ function ClinicDashboard() {
                 layout="vertical"
                 margin={{ left: 8, right: 12 }}
               >
-                <CartesianGrid stroke="#e3ebe9" horizontal={false} />
+                <CartesianGrid stroke="var(--line)" horizontal={false} />
                 <XAxis
                   type="number"
-                  tick={{ fontSize: 11, fill: "#52656e" }}
+                  tick={{ fontSize: 11, fill: "var(--ink-500)" }}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -147,18 +148,22 @@ function ClinicDashboard() {
                   type="category"
                   dataKey="status"
                   width={78}
-                  tick={{ fontSize: 10, fill: "#526973" }}
+                  tick={{ fontSize: 10, fill: "var(--ink-500)" }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip
                   contentStyle={{
-                    border: "1px solid #cbdad6",
+                    border: "1px solid var(--line)",
                     borderRadius: 3,
                     fontSize: 12,
+                    background: "var(--surface-raised)",
+                    color: "var(--ink-950)",
                   }}
                 />
-                <Bar dataKey="count" fill="#167d78" maxBarSize={18} />
+                <Bar dataKey="count" fill="var(--gulf-teal)" maxBarSize={18}>
+                  <LabelList dataKey="count" position="right" fill="var(--ink-700)" fontSize={10}/>
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -211,7 +216,7 @@ function RoleActions({ role }: { role: string }) {
     return (
       <>
         <Link
-          className="inline-flex h-10 items-center gap-2 rounded-[4px] border border-[#b9cbc6] bg-white px-4 text-sm font-semibold text-[#314854]"
+          className="button-base button-secondary"
           href="/staff"
         >
           <UserRoundPlus size={16} />
@@ -246,7 +251,7 @@ function RoleActions({ role }: { role: string }) {
         <NewAppointment />
       </>
     );
-  if(role==="nurse")return <Link className="inline-flex h-10 items-center gap-2 rounded-[4px] border border-[#b9cbc6] bg-white px-4 text-sm font-semibold text-[#314854]" href="/queue"><Clock3 size={16}/>{t("dashboard.openQueue")}</Link>;
+  if(role==="nurse")return <Link className="button-base button-secondary" href="/queue"><Clock3 size={16}/>{t("dashboard.openQueue")}</Link>;
   return null;
 }
 function NewAppointment() {
@@ -254,7 +259,7 @@ function NewAppointment() {
   return (
     <Link
       href="/appointments/new"
-      className="inline-flex h-10 items-center gap-2 rounded-[4px] bg-[#167d78] px-4 text-sm font-semibold text-white"
+      className="button-base button-primary"
     >
       <CalendarPlus size={16} />
       {t("appointments.new")}
@@ -285,7 +290,7 @@ function PharmacyDashboard() {
         actions={
           <Link
             href="/pharmacy/prescriptions"
-            className="inline-flex h-10 items-center gap-2 rounded-[4px] bg-[#167d78] px-4 text-sm font-semibold text-white"
+            className="button-base button-primary"
           >
             <Pill size={16} />
             {t("pharmacy.dispensingQueue")}

@@ -1,6 +1,34 @@
 # ClinicFlow UI redesign report
 
-Date: 2026-07-15 (Asia/Bahrain)
+Date: 2026-07-30 (Asia/Bahrain)
+
+## Current redesign iteration
+
+- Rebuilt the light and dark application shell to match the supplied clinical dashboard
+  references: white operational chrome and a cool-gray workspace in light mode, unified
+  slate navigation and work surfaces in dark mode, compact Mulish-style typography,
+  cyan active navigation, thin borders, and restrained radii and shadows.
+- Reproduced the reported patient-name hover defect in a real dark-mode browser
+  (`#f6faf9` was leaking into the dark table state). Data rows now use semantic hover
+  and focus tokens; the verified dark hover remains slate (`rgb(61, 70, 95)`) while the
+  patient link remains cyan (`rgb(107, 200, 234)`).
+- Migrated the shared buttons, controls, cards, table rows, data links, badges, dialogs,
+  alerts, loading indicators, empty states, top bar, and mobile navigation onto the
+  Clinical Current token system. Route-level appointment calendar, patient, billing,
+  dashboard, pharmacy, and settings controls were aligned with the same system.
+- Added a complete light, dark, and system appearance model. The resolved theme is
+  applied before hydration, manual choices persist in the browser, system mode follows
+  the device preference, and controls are available on authentication screens, the app
+  top bar, and Settings.
+- Extended the Clinical Current token layer for dark surfaces, raised workspaces,
+  borders, text, focus, chart, safety, and status colors. An Axe finding on the original
+  dark filled-action cyan was fixed by increasing its contrast against white text.
+- Refined the owner dashboard desktop split so the operational appointment table keeps
+  its status column visible at 1280 and 1440 px. Database-derived chart bars now include
+  visible numeric labels and use theme tokens.
+- Migrated patient registration and appointment booking from compatibility-only text
+  translation to direct semantic keys for labels, hints, options, validation errors,
+  placeholders, and actions.
 
 ## Scope and page inventory
 
@@ -51,6 +79,8 @@ schema, migration, seed, permission, or database behavior was changed.
 - Added reusable mineral navy, Gulf teal, clinical neutral, focus, status, border, and
   surface styling in the global token layer. Corners, shadows, and density are varied by
   component purpose rather than applying a generic card treatment everywhere.
+- Added a reusable theme provider, compact theme switcher, three-way appearance control,
+  pre-hydration theme resolution, persistence tests, and theme-aware chart rendering.
 - Added a skip link, visible focus treatment, accessible navigation labels, dialog and
   icon-button names, localized scroll-region labels, and table keyboard access.
 - Added locale-aware date, weekday, month, time, currency, and number formatting helpers.
@@ -64,6 +94,7 @@ schema, migration, seed, permission, or database behavior was changed.
 
 - Runtime switching between English and Arabic is implemented and persisted across
   refreshes. The active language updates the document `lang` and `dir` attributes.
+- Light, dark, and system appearance choices work in both languages and directions.
 - Navigation, authentication, role dashboards, patients, appointment formatting,
   states, validation, controls, accessible names, audit actions, and workflow labels are
   localized through structured translation keys.
@@ -95,7 +126,7 @@ captured screenshots:
 
 | Viewport | Modes and workflows inspected | Result |
 |---|---|---|
-| 1440 x 900 | English/Arabic dashboards, appointments, staff | Passed |
+| 1440 x 900 | English/Arabic dashboards, dark dashboard, appointments, staff | Passed |
 | 1280 x 800 | English dashboard and dense operational layout | Passed |
 | 768 x 1024 | Dashboard and Arabic patient form | Passed |
 | 390 x 844 | Dashboard, Arabic patient form, and patient table scrolling | Passed |
@@ -110,22 +141,23 @@ at the 390 px viewport width.
 |---|---|
 | `cd frontend && npm run lint` | Passed |
 | `cd frontend && npm run typecheck` | Passed |
-| `cd frontend && npm test -- --run` | Passed; 3 files, 5 tests |
-| `cd frontend && npm run build` | Passed; 32 routes generated |
-| `cd frontend && PLAYWRIGHT_CHROMIUM_PATH=/home/hashem/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome npm run test:e2e` | Passed; 6 journeys in 1.8 minutes |
-| Axe scan in the Playwright core owner journey | Passed; no serious or critical findings |
+| `cd frontend && npm test -- --run` | Passed; 4 files, 7 tests |
+| `cd frontend && npm run build` | Passed; 32 static pages generated and all listed routes compiled |
+| `cd frontend && PLAYWRIGHT_CHROMIUM_PATH=/home/hashem/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome npx playwright test` | Passed; 6 journeys in 1.0 minute |
+| Axe scans in light and dark owner journeys | Passed; no serious or critical findings |
+| `docker compose config --quiet` and `docker compose up -d backend frontend` | Passed; database healthy and app/API reachable |
 
-The final E2E run started from a clean `.next` build and a clean migrated/seeded browser
-test database. Earlier failures exposed strict locator collisions, a calendar/list mode
-assumption, and mobile dashboard overflow; those issues were fixed before the final
-uninterrupted 6/6 run.
+The final E2E run used a clean migrated/seeded browser test database. Iterative Axe
+checks exposed secondary text, avatar, warning-status, and filled-action contrast
+issues; the tokens were corrected and the final uninterrupted 6/6 run passed both
+theme scans.
 
 ## Skipped validation
 
-- Backend lint, backend unit tests, Docker image builds, and infrastructure checks were
-  not rerun on 2026-07-15 because this continuation was explicitly frontend-only and no
-  backend or infrastructure file was changed. Their 2026-07-13 results remain recorded
-  as historical evidence in `TEST_REPORT.md` and are not represented as newly executed.
+- Backend lint, backend unit tests, and Docker image builds were not rerun because this
+  continuation was explicitly frontend-only and no backend or infrastructure file was
+  changed. Docker configuration, startup, service health, and frontend/API reachability
+  were rerun on 2026-07-30.
 - The Axe journey is targeted evidence for the core owner workflow, not a complete WCAG
   2.2, clinical-safety, or legal compliance certification.
 
@@ -137,9 +169,9 @@ uninterrupted 6/6 run.
   object storage, malware scanning, managed keys, retention, and backup policies.
 - Pharmacy workflows remain operational software and do not replace statutory registers
   or jurisdiction-specific professional controls.
-- The compatibility translation layer should eventually be replaced with direct
-  semantic keys in every legacy route. This is code-level localization debt; tested
-  Arabic workflows rendered translated UI and correct RTL behavior.
+- Patient registration and appointment booking now use direct semantic keys. Some
+  older secondary routes still use the central compatibility translator and should be
+  migrated incrementally; tested Arabic workflows rendered translated UI and correct
+  RTL behavior.
 - No unsupported frontend action or fake persistence was introduced. Features absent
   from the existing backend remain omitted rather than simulated.
-
