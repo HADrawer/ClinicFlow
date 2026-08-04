@@ -4,9 +4,9 @@ import Link from "next/link";
 import {usePathname,useRouter} from "next/navigation";
 import {useEffect,useMemo,useState} from "react";
 import {
-  Activity,CalendarDays,ChevronDown,ClipboardList,Clock3,CreditCard,
+  Activity,CalendarDays,CalendarPlus,ChevronDown,ClipboardList,Clock3,CreditCard,
   FileChartColumn,FlaskConical,LayoutDashboard,ListPlus,LogOut,Menu,
-  MessageCircle,Pill,Settings,ShieldCheck,Stethoscope,Users,UsersRound,X,
+  MessageCircle,Pill,Plus,Settings,ShieldCheck,Stethoscope,UserPlus,Users,UsersRound,X,
 } from "lucide-react";
 import {useAuth} from "@/lib/auth";
 import {cn,titleCase} from "@/lib/utils";
@@ -14,27 +14,31 @@ import type {Role} from "@/lib/types";
 import {Loading} from "@/components/ui/feedback";
 import {LanguageSwitcher,useI18n} from "@/lib/i18n";
 import {ThemeSwitcher} from "@/lib/theme";
+import {hasAnyPermission,hasPermission} from "@/lib/permissions";
+import {useQuickCreate} from "@/lib/quick-create";
+import {useSelectedPatient} from "@/lib/selected-patient";
+import {PatientContextRail} from "./patient-context";
 
-type NavItem={href:string;labelKey:string;icon:typeof Activity;roles:Role[];pharmacy?:boolean};
+type NavItem={href:string;labelKey:string;icon:typeof Activity;roles:Role[];permissions?:string[];pharmacy?:boolean};
 const groups:{labelKey:string;items:NavItem[]}[]=[
   {labelKey:"navigation.current",items:[
     {href:"/dashboard",labelKey:"navigation.dashboard",icon:LayoutDashboard,roles:["owner","doctor","receptionist","accountant","nurse","pharmacist"]},
-    {href:"/appointments",labelKey:"navigation.appointments",icon:CalendarDays,roles:["owner","doctor","receptionist","nurse"]},
-    {href:"/queue",labelKey:"navigation.queue",icon:Clock3,roles:["owner","doctor","receptionist","nurse"]},
-    {href:"/waitlist",labelKey:"navigation.waitlist",icon:ListPlus,roles:["owner","doctor","receptionist"]},
+    {href:"/appointments",labelKey:"navigation.appointments",icon:CalendarDays,roles:["owner","doctor","receptionist","nurse"],permissions:["appointments.read_own","appointments.read_all","appointments.manage_own","appointments.manage_all"]},
+    {href:"/queue",labelKey:"navigation.queue",icon:Clock3,roles:["owner","doctor","receptionist","nurse"],permissions:["queue.manage"]},
+    {href:"/waitlist",labelKey:"navigation.waitlist",icon:ListPlus,roles:["owner","doctor","receptionist"],permissions:["waitlist.manage"]},
   ]},
   {labelKey:"navigation.clinical",items:[
-    {href:"/patients",labelKey:"navigation.patients",icon:Users,roles:["owner","doctor","receptionist","nurse"]},
-    {href:"/orders",labelKey:"navigation.orders",icon:FlaskConical,roles:["owner","doctor","nurse"]},
-    {href:"/messages",labelKey:"navigation.messages",icon:MessageCircle,roles:["owner","doctor","receptionist"]},
+    {href:"/patients",labelKey:"navigation.patients",icon:Users,roles:["owner","doctor","receptionist","nurse"],permissions:["patients.read"]},
+    {href:"/orders",labelKey:"navigation.orders",icon:FlaskConical,roles:["owner","doctor","nurse"],permissions:["orders.manage"]},
+    {href:"/messages",labelKey:"navigation.messages",icon:MessageCircle,roles:["owner","doctor","receptionist"],permissions:["messages.create"]},
   ]},
   {labelKey:"navigation.operations",items:[
-    {href:"/billing",labelKey:"navigation.billing",icon:CreditCard,roles:["owner","receptionist","accountant"]},
-    {href:"/insurance",labelKey:"navigation.insurance",icon:ShieldCheck,roles:["owner","accountant"]},
-    {href:"/pharmacy",labelKey:"navigation.pharmacy",icon:Pill,roles:["owner","pharmacist"],pharmacy:true},
-    {href:"/staff",labelKey:"navigation.staff",icon:UsersRound,roles:["owner"]},
-    {href:"/quality",labelKey:"navigation.quality",icon:ClipboardList,roles:["owner","receptionist","nurse"]},
-    {href:"/reports",labelKey:"navigation.reports",icon:FileChartColumn,roles:["owner","accountant","pharmacist"]},
+    {href:"/billing",labelKey:"navigation.billing",icon:CreditCard,roles:["owner","receptionist","accountant"],permissions:["billing.create"]},
+    {href:"/insurance",labelKey:"navigation.insurance",icon:ShieldCheck,roles:["owner","accountant"],permissions:["claims.manage"]},
+    {href:"/pharmacy",labelKey:"navigation.pharmacy",icon:Pill,roles:["owner","pharmacist"],permissions:["pharmacy.read","pharmacy.dispense","pharmacy.inventory_manage"],pharmacy:true},
+    {href:"/staff",labelKey:"navigation.staff",icon:UsersRound,roles:["owner"],permissions:["staff.manage"]},
+    {href:"/quality",labelKey:"navigation.quality",icon:ClipboardList,roles:["owner","receptionist","nurse"],permissions:["quality.manage"]},
+    {href:"/reports",labelKey:"navigation.reports",icon:FileChartColumn,roles:["owner","accountant","pharmacist"],permissions:["reports.view"]},
     {href:"/settings",labelKey:"navigation.settings",icon:Settings,roles:["owner"]},
   ]},
 ];
@@ -49,13 +53,17 @@ export function AppShell({children}:{children:React.ReactNode}){
   const {t,label,isRtl}=useI18n();
   const path=usePathname();
   const router=useRouter();
+  const quickCreate=useQuickCreate();
+  const selected=useSelectedPatient();
   const [mobile,setMobile]=useState(false);
   const [profile,setProfile]=useState(false);
+  const [quick,setQuick]=useState(false);
 
   useEffect(()=>{if(!loading&&!user)router.replace("/login")},[loading,user,router]);
-  useEffect(()=>{setMobile(false);setProfile(false)},[path]);
+  useEffect(()=>{setMobile(false);setProfile(false);setQuick(false)},[path]);
+  useEffect(()=>{const close=(event:KeyboardEvent)=>{if(event.key==="Escape")setQuick(false)};document.addEventListener("keydown",close);return()=>document.removeEventListener("keydown",close)},[]);
   const visible=useMemo(()=>groups
-    .map(group=>({...group,items:group.items.filter(item=>user&&item.roles.includes(user.role)&&(!item.pharmacy||user.clinic?.pharmacy_enabled))}))
+    .map(group=>({...group,items:group.items.filter(item=>user&&(item.roles.includes(user.role)||Boolean(item.permissions&&hasAnyPermission(user,item.permissions)))&&(!item.pharmacy||user.clinic?.pharmacy_enabled))}))
     .filter(group=>group.items.length),[user]);
 
   if(loading||!user)return <div className="min-h-screen bg-[var(--canvas)]"><Loading label={t("common.openingClinicFlow")}/></div>;
@@ -74,6 +82,15 @@ export function AppShell({children}:{children:React.ReactNode}){
           <p className="hidden truncate text-[11px] text-[var(--ink-500)] md:block">{t("common.currentSession")} · {label(titleCase(user.role))}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          <div className="relative">
+            <button className="button-base button-primary min-h-9 px-2.5 sm:px-3" aria-expanded={quick} aria-haspopup="menu" onClick={()=>{setQuick(current=>!current);setProfile(false)}}><Plus size={16}/><span className="hidden sm:inline">{t("quickCreate.label")}</span></button>
+            {quick&&<div className="quick-create-menu" role="menu" aria-label={t("quickCreate.label")}>
+              {hasPermission(user,"patients.create")&&<button role="menuitem" onClick={()=>{setQuick(false);quickCreate.openPatient()}}><UserPlus size={16}/><span><strong>{t("quickCreate.addPatient")}</strong><small>{t("quickCreate.addPatientHint")}</small></span></button>}
+              {(hasPermission(user,"appointments.manage_own")||hasPermission(user,"appointments.manage_all"))&&<button role="menuitem" onClick={()=>{setQuick(false);quickCreate.openAppointment()}}><CalendarPlus size={16}/><span><strong>{t("appointments.new")}</strong><small>{t("quickCreate.appointmentHint")}</small></span></button>}
+              {hasPermission(user,"staff.manage")&&<Link role="menuitem" href="/staff?invite=1"><UsersRound size={16}/><span><strong>{t("quickCreate.inviteStaff")}</strong><small>{t("quickCreate.inviteHint")}</small></span></Link>}
+              {hasPermission(user,"billing.create")&&selected.detail&&<Link role="menuitem" href={`/billing/new?patient=${selected.detail.patient.id}`}><CreditCard size={16}/><span><strong>{t("forms.createInvoice")}</strong><small>{selected.detail.patient.full_name}</small></span></Link>}
+            </div>}
+          </div>
           <ThemeSwitcher label={t}/>
           <LanguageSwitcher compact/>
           <div className="relative">
@@ -123,6 +140,7 @@ export function AppShell({children}:{children:React.ReactNode}){
     </aside>
 
     {mobile&&<button className="fixed inset-0 z-30 bg-[#20283a]/55 lg:hidden" onClick={()=>setMobile(false)} aria-label={t("accessibility.closeOverlay")}/>}
-    <main id="main-content" className="app-main lg:ps-[260px]"><div className="app-workspace sm:p-5 lg:p-8">{children}</div></main>
+    <main id="main-content" className={cn("app-main lg:ps-[260px]",selected.detail&&"app-main--patient")}><div className="app-workspace sm:p-5 lg:p-8">{children}</div></main>
+    <PatientContextRail/>
   </div>;
 }

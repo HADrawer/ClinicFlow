@@ -5,7 +5,10 @@ const password="password123";
 
 async function login(page:Page,email:string,secret=password){await page.goto("/login");await page.getByLabel("Email address").fill(email);await page.getByLabel("Password").fill(secret);await page.waitForTimeout(500);await page.getByRole("button",{name:"Sign in securely"}).click();await expect(page).toHaveURL(/\/dashboard$/)}
 async function logout(page:Page){await page.locator("header").getByRole("button").last().click();await page.getByRole("menuitem",{name:"Sign out and revoke session"}).click();await expect(page).toHaveURL(/\/login$/)}
-function localDateTime(days:number,hour:number){const value=new Date();value.setDate(value.getDate()+days);value.setHours(hour,0,0,0);const offset=value.getTimezoneOffset();return new Date(value.getTime()-offset*60_000).toISOString().slice(0,16)}
+function futureWorkingDate(days:number){const value=new Date();value.setDate(value.getDate()+days);while([5,6].includes(value.getDay()))value.setDate(value.getDate()+1);return value}
+async function chooseAppointmentDate(page:Page,days:number){const target=futureWorkingDate(days);const now=new Date();const monthOffset=(target.getFullYear()-now.getFullYear())*12+target.getMonth()-now.getMonth();await page.getByRole("button",{name:"Select a date"}).click();for(let index=0;index<monthOffset;index++)await page.getByRole("button",{name:"Next month"}).click();await page.locator('.date-picker__day[data-outside="false"]').filter({hasText:new RegExp(`^${target.getDate()}$`)}).click()}
+async function chooseAppointmentTime(page:Page,index=4){await page.getByRole("button",{name:"Start time"}).click();await page.getByRole("listbox",{name:"Start time"}).getByRole("option").nth(index).click()}
+async function chooseFirstComboboxOption(page:Page,name:string){const input=page.getByRole("combobox",{name});await input.click();const first=page.getByRole("listbox",{name}).getByRole("option").first();await expect(first).toBeVisible();await first.click()}
 async function assertNoSeriousAxe(page:Page){const result=await new AxeBuilder({page:page as any}).withTags(["wcag2a","wcag2aa","wcag21aa","wcag22aa"]).analyze();expect(result.violations.filter(item=>["critical","serious"].includes(item.impact||"")),JSON.stringify(result.violations,null,2)).toEqual([])}
 async function assertNoPageOverflow(page:Page){const result=await page.evaluate(()=>({viewport:window.innerWidth,documentWidth:document.documentElement.scrollWidth,offenders:[...document.querySelectorAll("body *")].map(element=>({element,rect:element.getBoundingClientRect()})).filter(item=>item.rect.right>window.innerWidth+1&&getComputedStyle(item.element).position!=="fixed").slice(0,12).map(item=>({tag:item.element.tagName,className:(item.element as HTMLElement).className,right:Math.round(item.rect.right),width:Math.round(item.rect.width)}))}));expect(result.documentWidth,JSON.stringify(result,null,2)).toBeLessThanOrEqual(result.viewport)}
 
@@ -40,13 +43,13 @@ test("owner invites Doctor B; doctor activates, manages an appointment, finalize
   await expect(page.getByText("Clinical session")).toBeVisible();
 
   await page.goto("/appointments/new");
-  await page.getByLabel("Patient").selectOption({index:1});
+  await chooseFirstComboboxOption(page,"Search patients");
   await page.getByLabel("Service").selectOption({index:1});
-  await page.getByLabel("Start").fill(localDateTime(45,10));
-  await page.getByLabel("End").fill(localDateTime(45,10).replace("10:00","10:30"));
+  await chooseAppointmentDate(page,45);
+  await chooseAppointmentTime(page,8);
   await page.getByLabel("Room / chair / resource").fill("Consult B");
   await page.getByLabel("Reason for visit").fill("Doctor B continuity review");
-  await page.getByRole("button",{name:"Create appointment"}).click();
+  await page.getByRole("button",{name:"Create appointment",exact:true}).click();
   await expect(page).toHaveURL(/\/appointments\/\d+$/);
   await page.getByRole("button",{name:"Confirm",exact:true}).click();
   await page.getByRole("button",{name:"Check in",exact:true}).click();
@@ -62,10 +65,10 @@ test("owner invites Doctor B; doctor activates, manages an appointment, finalize
   await expect(page.getByText("Encounter saved to the patient record.")).toBeVisible();
   await page.getByRole("link",{name:"Book follow-up"}).click();
   await page.getByLabel("Service").selectOption({index:1});
-  await page.getByLabel("Start").fill(localDateTime(52,11));
-  await page.getByLabel("End").fill(localDateTime(52,11).replace("11:00","11:30"));
+  await chooseAppointmentDate(page,52);
+  await chooseAppointmentTime(page,12);
   await page.getByLabel("Reason for visit").fill("Planned clinical follow-up");
-  await page.getByRole("button",{name:"Create appointment"}).click();
+  await page.getByRole("button",{name:"Create appointment",exact:true}).click();
   await expect(page).toHaveURL(/\/appointments\/\d+$/);
 
   await logout(page);
@@ -81,30 +84,41 @@ test("owner invites Doctor B; doctor activates, manages an appointment, finalize
 
 test("receptionist registers a patient, checks in, queues and invoices the visit",async({page})=>{
   await login(page,"reception@clinicflow.test");
-  await page.goto("/patients/new");
+  await page.goto("/appointments");
+  await page.locator(".schedule-slot__empty").first().click();
+  await expect(page.getByRole("dialog",{name:"New appointment"})).toBeVisible();
+  await page.getByRole("combobox",{name:"Search patients"}).click();
+  await page.getByRole("button",{name:"Add new patient"}).click();
+  await expect(page.getByRole("dialog",{name:"Register patient"})).toBeVisible();
   await page.getByLabel("Full legal name").fill("E2E Patient Journey");
-  await page.getByLabel("Mobile number").fill("+973 3999 2401");
   await page.getByLabel("CPR number").fill("991231240");
-  await page.getByLabel("Allergies").fill("Penicillin — rash");
-  await page.getByLabel("Treatment consent state").selectOption("accepted");
-  await page.getByLabel("Patient communication consent recorded").check();
+  await page.getByLabel("Date of birth").fill("1991-12-31");
+  await page.getByLabel("Gender").selectOption("female");
+  await page.getByLabel("Mobile number").fill("+973 3999 2401");
   await page.getByRole("button",{name:"Register patient"}).click();
-  await expect(page).toHaveURL(/\/patients\/\d+$/);
-  await expect(page.getByText("Penicillin — rash").first()).toBeVisible();
-  await page.getByRole("link",{name:"Book appointment"}).click();
-  await page.getByLabel("Doctor").selectOption({index:1});
+  await expect(page.getByRole("dialog",{name:"Register patient"})).toHaveCount(0);
+  await expect(page.getByRole("combobox",{name:"Search patients"})).toHaveValue("E2E Patient Journey");
+  await chooseFirstComboboxOption(page,"Search bookable providers");
   await page.getByLabel("Service").selectOption({index:1});
-  await page.getByLabel("Start").fill(localDateTime(60,9));
-  await page.getByLabel("End").fill(localDateTime(60,9).replace("09:00","09:30"));
   await page.getByLabel("Reason for visit").fill("Front desk patient journey");
-  await page.getByRole("button",{name:"Create appointment"}).click();
-  await expect(page).toHaveURL(/\/appointments\/\d+$/);const appointmentUrl=page.url();
+  await page.getByRole("button",{name:"Create appointment",exact:true}).click();
+  await expect(page.getByRole("dialog",{name:"New appointment"})).toHaveCount(0);
+  await expect(page.getByRole("complementary",{name:"Selected patient"})).toContainText("E2E Patient Journey");
+  await page.reload();
+  await expect(page.getByRole("complementary",{name:"Selected patient"})).toContainText("E2E Patient Journey");
+  await page.screenshot({path:"test-results/screenshots/desktop-selected-patient-rail.png",fullPage:true});
+  await page.getByPlaceholder("Patient, CPR, provider, room or service").fill("E2E Patient Journey");
+  await page.getByRole("button",{name:/E2E Patient Journey/}).click();
   await page.getByRole("button",{name:"Check in",exact:true}).click();
+  const fullAppointment=page.getByRole("link",{name:"Open full appointment"});
+  const appointmentUrl=await fullAppointment.getAttribute("href");
+  expect(appointmentUrl).toMatch(/^\/appointments\/\d+$/);
   await page.goto("/queue");
-  await expect(page.getByText("E2E Patient Journey")).toBeVisible();
-  await page.getByRole("row",{name:/E2E Patient Journey/}).getByRole("button",{name:"Call next"}).click();
-  await page.goto(appointmentUrl);
-  await page.getByRole("link",{name:"Create invoice"}).click();
+  const queueRow=page.getByRole("row",{name:/E2E Patient Journey/});
+  await expect(queueRow).toBeVisible();
+  await queueRow.getByRole("button",{name:"Call next"}).click();
+  await page.goto(appointmentUrl!);
+  await page.locator("#main-content").getByRole("link",{name:"Create invoice"}).click();
   await expect(page.getByRole("heading",{name:"New invoice"})).toBeVisible();
 });
 
@@ -148,7 +162,10 @@ test("tenant isolation, disabled pharmacy and responsive accessible core screens
   await page.getByRole("button",{name:"Switch to light mode"}).click();
   const captures=[{name:"desktop-1440",width:1440,height:900},{name:"desktop-1280",width:1280,height:800},{name:"tablet-768",width:768,height:1024},{name:"mobile-390",width:390,height:844}];
   for(const size of captures){await page.setViewportSize({width:size.width,height:size.height});await page.goto("/dashboard");await expect(page.getByRole("heading").first()).toBeVisible();await assertNoPageOverflow(page);await page.screenshot({path:`test-results/screenshots/${size.name}-dashboard.png`,fullPage:true})}
-  await page.setViewportSize({width:1440,height:900});await page.goto("/appointments");await expect(page.getByRole("heading",{name:"Clinic schedule"})).toBeVisible();await page.screenshot({path:"test-results/screenshots/desktop-appointments.png",fullPage:true});await page.goto("/staff");await expect(page.getByRole("heading",{name:"Staff access"})).toBeVisible();await page.screenshot({path:"test-results/screenshots/desktop-staff.png",fullPage:true});
+  await page.setViewportSize({width:1440,height:900});await page.goto("/appointments");await expect(page.getByRole("heading",{name:"Clinic schedule"})).toBeVisible();await page.screenshot({path:"test-results/screenshots/desktop-appointments.png",fullPage:true});
+  await page.getByRole("button",{name:"Quick create"}).click();await page.getByRole("menuitem",{name:/New appointment/}).click();await expect(page.getByRole("dialog",{name:"New appointment"})).toBeVisible();await assertNoSeriousAxe(page);await page.screenshot({path:"test-results/screenshots/desktop-appointment-popup.png",fullPage:true});await page.getByRole("button",{name:"Close dialog"}).click();
+  await page.setViewportSize({width:390,height:844});await page.getByRole("button",{name:"New appointment"}).click();await expect(page.getByRole("dialog",{name:"New appointment"})).toBeVisible();await assertNoPageOverflow(page);await page.screenshot({path:"test-results/screenshots/mobile-appointment-sheet.png",fullPage:true});await page.getByRole("button",{name:"Close dialog"}).click();
+  await page.setViewportSize({width:1440,height:900});await page.goto("/staff");await expect(page.getByRole("heading",{name:"Staff access"})).toBeVisible();await page.screenshot({path:"test-results/screenshots/desktop-staff.png",fullPage:true});await page.goto("/staff?invite=1");await expect(page.getByRole("dialog",{name:"Invite clinic staff"})).toBeVisible();await page.getByRole("button",{name:"Close dialog"}).click();
   await logout(page);await login(page,"owner.riffa@clinicflow.test");await expect(page.getByRole("link",{name:"Pharmacy"})).toHaveCount(0);
   const riffaToken=await page.evaluate(()=>localStorage.getItem("clinicflow_token"));const pharmacy=await request.get("http://127.0.0.1:8000/api/pharmacy/dashboard",{headers:{Authorization:`Bearer ${riffaToken}`}});expect(pharmacy.status()).toBe(404);
 });
@@ -167,6 +184,13 @@ test("Arabic is persisted as a true RTL interface across navigation, forms, tabl
   await page.screenshot({path:"test-results/screenshots/desktop-1440-dashboard-ar.png",fullPage:true});
   await page.goto("/appointments");
   await expect(page.getByRole("heading",{name:"جدول العيادة"})).toBeVisible();
+  await page.getByRole("button",{name:"موعد جديد",exact:true}).click();
+  await expect(page.getByRole("dialog",{name:"موعد جديد"})).toBeVisible();
+  await page.setViewportSize({width:390,height:844});
+  await assertNoPageOverflow(page);
+  await page.screenshot({path:"test-results/screenshots/mobile-390-appointment-popup-ar.png",fullPage:true});
+  await page.getByRole("button",{name:"إغلاق النافذة"}).click();
+  await page.setViewportSize({width:1440,height:900});
   await page.getByRole("button",{name:"قائمة",exact:true}).click();
   await expect(page.getByRole("columnheader",{name:"المريض"})).toBeVisible();
   await page.screenshot({path:"test-results/screenshots/desktop-appointments-ar.png",fullPage:true});
@@ -190,7 +214,7 @@ test("every seeded role receives a distinct permitted workspace",async({page})=>
     {email:"reception@clinicflow.test",heading:"Front desk current",visible:"Patients",hidden:"Insurance"},
     {email:"nurse@clinicflow.test",heading:"Care coordination",visible:"Queue",hidden:"Billing"},
     {email:"accountant@clinicflow.test",heading:"Revenue cycle",visible:"Billing",hidden:"Patients"},
-    {email:"pharmacist@clinicflow.test",heading:"Dispensary current",visible:"Pharmacy",hidden:"Patients"},
+    {email:"pharmacist@clinicflow.test",heading:"Dispensary current",visible:"Pharmacy",hidden:"Schedule"},
   ];
   for(const role of roles){
     await login(page,role.email);

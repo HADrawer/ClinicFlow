@@ -1,20 +1,40 @@
 "use client";
 
-import {useEffect,useId,useRef} from "react";
+import {useCallback,useEffect,useId,useRef} from "react";
 import {X} from "lucide-react";
 import {Button} from "./button";
 import {translateEnglish,useI18n} from "@/lib/i18n";
 
-export function Modal({open,onClose,title,children,size="max-w-2xl"}:{open:boolean;onClose:()=>void;title:string;children:React.ReactNode;size?:string}){
+type ModalProps={
+  open:boolean;
+  onClose:()=>void;
+  title:string;
+  description?:string;
+  children:React.ReactNode;
+  size?:string;
+  dirty?:boolean;
+  kind?:"dialog"|"sheet";
+};
+
+export function Modal({open,onClose,title,description,children,size="max-w-2xl",dirty=false,kind="dialog"}:ModalProps){
   const {locale,t}=useI18n();
   const titleId=useId();
+  const descriptionId=useId();
   const panel=useRef<HTMLDivElement>(null);
+  const requestClose=useCallback(()=>{
+    if(dirty&&!window.confirm(t("common.discardChanges")))return;
+    onClose();
+  },[dirty,onClose,t]);
 
   useEffect(()=>{
     if(!open)return;
     const previous=document.activeElement as HTMLElement|null;
+    const overflow=document.body.style.overflow;
+    document.body.style.overflow="hidden";
     const key=(event:KeyboardEvent)=>{
-      if(event.key==="Escape")onClose();
+      const dialogs=[...document.querySelectorAll<HTMLElement>("[data-workspace-dialog]")];
+      if(panel.current!==dialogs.at(-1))return;
+      if(event.key==="Escape")requestClose();
       if(event.key==="Tab"&&panel.current){
         const focusable=[...panel.current.querySelectorAll<HTMLElement>('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')];
         if(!focusable.length)return;
@@ -25,15 +45,18 @@ export function Modal({open,onClose,title,children,size="max-w-2xl"}:{open:boole
     };
     document.addEventListener("keydown",key);
     requestAnimationFrame(()=>panel.current?.querySelector<HTMLElement>("button,input,select,textarea")?.focus());
-    return()=>{document.removeEventListener("keydown",key);previous?.focus();};
-  },[open,onClose]);
+    return()=>{document.removeEventListener("keydown",key);document.body.style.overflow=overflow;previous?.focus();};
+  },[open,requestClose]);
 
   if(!open)return null;
-  return <div className="dialog-backdrop fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4" onMouseDown={onClose}>
-    <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className={`dialog-panel max-h-[92vh] w-full ${size} overflow-y-auto outline-none`} onMouseDown={event=>event.stopPropagation()}>
-      <div className="surface-header sticky top-0 z-10 flex items-center justify-between px-5 py-4">
-        <h2 id={titleId} className="font-bold text-[var(--ink-950)]">{translateEnglish(title,locale)}</h2>
-        <Button onClick={onClose} className="min-h-9 px-2.5" variant="ghost" aria-label={t("accessibility.closeDialog")}><X size={19}/></Button>
+  return <div className={`dialog-backdrop fixed inset-0 z-50 flex ${kind==="sheet"?"items-stretch justify-end":"items-center justify-center"} p-0 sm:p-4`} onMouseDown={requestClose}>
+    <div data-workspace-dialog ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description?descriptionId:undefined} className={`dialog-panel dialog-panel--${kind} max-h-[100dvh] w-full ${size} overflow-y-auto outline-none sm:max-h-[92vh]`} onMouseDown={event=>event.stopPropagation()}>
+      <div className="surface-header sticky top-0 z-20 flex items-start justify-between gap-4 px-4 py-3.5 sm:px-5 sm:py-4">
+        <div className="min-w-0">
+          <h2 id={titleId} className="font-bold text-[var(--ink-950)]">{translateEnglish(title,locale)}</h2>
+          {description&&<p id={descriptionId} className="mt-1 text-xs leading-5 text-[var(--ink-500)]">{translateEnglish(description,locale)}</p>}
+        </div>
+        <Button onClick={requestClose} className="min-h-9 shrink-0 px-2.5" variant="ghost" aria-label={t("accessibility.closeDialog")}><X size={19}/></Button>
       </div>
       {children}
     </div>

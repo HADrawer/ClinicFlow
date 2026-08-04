@@ -1,10 +1,11 @@
 export const cn=(...values:(string|false|null|undefined)[])=>values.filter(Boolean).join(" ");
 const locale=()=>typeof document!=="undefined"&&document.documentElement.lang==="ar"?"ar-BH":"en-BH";
+export const apiDate=(value:string|Date)=>value instanceof Date?value:new Date(/(?:Z|[+-]\d{2}:?\d{2})$/.test(value)?value:`${value}Z`);
 export const money=(value:string|number)=>new Intl.NumberFormat(locale(),{style:"currency",currency:"BHD",minimumFractionDigits:3}).format(Number(value));
-export const dateTime=(value:string)=>new Intl.DateTimeFormat(locale(),{dateStyle:"medium",timeStyle:"short"}).format(new Date(value));
-export const shortDate=(value:string)=>new Intl.DateTimeFormat(locale(),{day:"2-digit",month:"short",year:"numeric"}).format(new Date(value));
-export const localTime=(value:string|Date)=>new Intl.DateTimeFormat(locale(),{hour:"2-digit",minute:"2-digit"}).format(new Date(value));
-export const monthYear=(value:string|Date)=>new Intl.DateTimeFormat(locale(),{month:"long",year:"numeric"}).format(new Date(value));
-export const weekdayShort=(value:string|Date)=>new Intl.DateTimeFormat(locale(),{weekday:"short"}).format(new Date(value));
-export const dayNumber=(value:string|Date)=>new Intl.DateTimeFormat(locale(),{day:"numeric"}).format(new Date(value));
+export const dateTime=(value:string)=>new Intl.DateTimeFormat(locale(),{dateStyle:"medium",timeStyle:"short"}).format(apiDate(value));
+export const shortDate=(value:string)=>new Intl.DateTimeFormat(locale(),{day:"2-digit",month:"short",year:"numeric"}).format(apiDate(value));
+export const localTime=(value:string|Date)=>new Intl.DateTimeFormat(locale(),{hour:"2-digit",minute:"2-digit"}).format(apiDate(value));
+export const monthYear=(value:string|Date)=>new Intl.DateTimeFormat(locale(),{month:"long",year:"numeric"}).format(apiDate(value));
+export const weekdayShort=(value:string|Date)=>new Intl.DateTimeFormat(locale(),{weekday:"short"}).format(apiDate(value));
+export const dayNumber=(value:string|Date)=>new Intl.DateTimeFormat(locale(),{day:"numeric"}).format(apiDate(value));
 export const titleCase=(value:string)=>value.replaceAll("_"," ").replace(/\b\w/g,c=>c.toUpperCase());

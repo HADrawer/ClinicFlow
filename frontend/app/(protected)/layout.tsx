@@ -1,3 +1,4 @@
 import {AppShell} from "@/components/layout/app-shell";
-export default function ProtectedLayout({children}:{children:React.ReactNode}){return <AppShell>{children}</AppShell>}
-
+import {SelectedPatientProvider} from "@/lib/selected-patient";
+import {QuickCreateProvider} from "@/lib/quick-create";
+export default function ProtectedLayout({children}:{children:React.ReactNode}){return <SelectedPatientProvider><QuickCreateProvider><AppShell>{children}</AppShell></QuickCreateProvider></SelectedPatientProvider>}
