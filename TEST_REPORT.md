@@ -1,84 +1,75 @@
-# ClinicFlow test report
+# ClinicFlow frontend test report
 
-Current frontend validation: 2026-07-30 (Asia/Bahrain)
+Validation date: 2026-08-04 (Asia/Bahrain)
 
-## Current frontend results
+## Final results
 
 | Area | Command | Result |
 |---|---|---|
-| Frontend lint | `cd frontend && npm run lint` | Passed |
-| Frontend types | `cd frontend && npm run typecheck` | Passed |
-| Component tests | `cd frontend && npm test -- --run` | Passed; 4 files, 7 tests |
-| Production build | `cd frontend && npm run build` | Passed; 32 static pages generated and all listed routes compiled |
-| Browser E2E | `cd frontend && PLAYWRIGHT_CHROMIUM_PATH=/home/hashem/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome npx playwright test` | Passed; 6 journeys in 1.0 minute |
-| Accessibility | Axe scans in light and dark core owner journeys | Passed; no serious or critical findings |
-| Responsive overflow | Automated page-width assertion | Passed at 1440, 1280, 768, and 390 px |
-| Docker runtime | `docker compose config --quiet`, startup, health and reachability checks | Passed |
+| Unit/component tests | `cd frontend && npm test -- --run` | Passed; 9 files, 15 tests |
+| ESLint | `cd frontend && npm run lint` | Passed |
+| TypeScript | `cd frontend && npm run typecheck` | Passed |
+| Production build | `cd frontend && NEXT_PRIVATE_BUILD_WORKER=1 npm run build` | Passed; 32/32 static pages generated and all listed routes compiled |
+| Browser E2E | `cd frontend && PLAYWRIGHT_CHROMIUM_PATH=/home/hashem/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome npx playwright test --reporter=list` | Passed; 6/6 journeys in 1.6 minutes |
+| Accessibility | Axe WCAG 2 A/AA, 2.1 AA, and 2.2 AA scans | Passed final targeted scans; no critical or serious violations |
+| Responsive containment | Playwright page-overflow assertions | Passed at 1440, 1280, 768, and 390 px |
 
-The final E2E result is from one uninterrupted run after clearing the generated `.next`
-directory. The suite ran its configured clean migration and seed setup before exercising
-the application.
+## Added frontend coverage
+
+- Patient popup requires CPR, rejects DOB today/future, and maps field-level errors.
+- Appointment popup retains the reason and outer form state while a nested patient is
+  created, then selects the new patient automatically.
+- Appointment creation uses application-controlled date and time pickers and 15/30/45
+  minute duration controls rather than native appointment date/time inputs.
+- Naïve API timestamps are interpreted as UTC while explicit offsets are preserved.
+- App-shell tests cover role/permission-aware navigation and Quick Create behavior.
+- The receptionist E2E journey clicks an empty schedule slot, creates a patient inside
+  appointment creation, creates the appointment without navigation, verifies selected
+  patient persistence after refresh, checks in, enters the queue, and reaches billing.
+- Owner E2E covers staff invitation/acceptance, custom appointment controls, encounter
+  finalization, follow-up booking, session revocation, and reactivation.
+- Responsive E2E covers desktop and mobile appointment popups, the selected-patient rail,
+  query-triggered staff invitation dialog, disabled-module isolation, and targeted Axe
+  scans.
+- Arabic E2E covers persisted RTL, appointment list/table, Arabic full-screen appointment
+  popup, patient form, mixed-direction content, responsive containment, and switching
+  back to English.
 
 ## Browser journeys passed
 
-1. Owner invites Doctor B; the doctor accepts the single-use invitation, manages an
-   appointment, finalizes an encounter, creates a follow-up, and is disabled/reactivated.
-2. Receptionist registers a patient, books and checks in an appointment, moves the
-   patient through the queue, and reaches invoice creation.
-3. Pharmacist creates a purchase order, receives a dated batch, verifies stock, dispenses
-   an open prescription, and reaches the immutable label preview.
-4. Cross-tenant patient access is blocked, disabled pharmacy navigation/API behavior is
-   respected, all required responsive widths avoid page overflow, and the core owner Axe
-   scan has no serious or critical findings.
-5. Arabic persists after refresh; RTL navigation, forms, dashboard, appointment list,
-   table behavior, and switching back to English work.
-6. Every seeded role reaches a distinct, permitted workspace with role-appropriate
-   navigation.
-7. Light/dark choice persists through refresh; system mode remains available when no
-   manual choice exists.
+1. Owner invitation, doctor activation, appointment, encounter, follow-up, disable, and
+   reactivation.
+2. Reception schedule slot, nested patient creation, appointment, selected-patient
+   persistence, check-in, queue, and invoice handoff.
+3. Pharmacist purchase, dated batch receipt, stock verification, and immutable dispensing.
+4. Cross-tenant denial, disabled pharmacy denial, theme persistence, responsive captures,
+   Quick Create/staff dialog behavior, and accessibility scans.
+5. English/Arabic persistence, true RTL, custom appointment sheet, tables, forms, and
+   responsive views.
+6. Distinct effective-permission workspaces for every seeded role.
 
 ## Visual captures inspected
 
-- `frontend/test-results/screenshots/desktop-1440-dashboard.png`
-- `frontend/test-results/screenshots/desktop-1440-dashboard-dark.png`
-- `frontend/test-results/screenshots/desktop-1440-dashboard-ar.png`
-- `frontend/test-results/screenshots/desktop-1280-dashboard.png`
-- `frontend/test-results/screenshots/tablet-768-dashboard.png`
-- `frontend/test-results/screenshots/tablet-768-patient-form-ar.png`
-- `frontend/test-results/screenshots/mobile-390-dashboard.png`
-- `frontend/test-results/screenshots/mobile-390-patient-form-ar.png`
 - `frontend/test-results/screenshots/desktop-appointments.png`
+- `frontend/test-results/screenshots/desktop-appointment-popup.png`
+- `frontend/test-results/screenshots/mobile-appointment-sheet.png`
+- `frontend/test-results/screenshots/desktop-selected-patient-rail.png`
 - `frontend/test-results/screenshots/desktop-appointments-ar.png`
-- `frontend/test-results/screenshots/desktop-staff.png`
-
-The final review verified the Clinical Current visual hierarchy in both themes, Arabic
-RTL sidebar placement, readable internal table scrolling at 390 px, mobile dashboard
-containment, visible desktop appointment statuses, and database-derived labeled chart
-bars. A dedicated dark patient-list hover check confirmed a slate row background
-(`rgb(61, 70, 95)`) and readable cyan patient link (`rgb(107, 200, 234)`).
-
-## Historical backend and deployment evidence
-
-The following checks were executed on 2026-07-13 and are retained as historical results.
-They were not rerun on 2026-07-15 because the current task changed frontend files only.
-
-| Area | Historical result (2026-07-13) |
-|---|---|
-| Backend Ruff lint/format | Passed; 33 files formatted and no findings |
-| Backend pytest | Passed; 22 tests |
-| Frontend dependency audit | Passed; 0 vulnerabilities |
-| Clean migration/seed | Passed at head `0003_documents_quality`; 2 clinics, 10 users, 25 patients |
-| Docker configuration/build/startup | Passed; PostgreSQL, migrations/seed, API, and web healthy |
+- `frontend/test-results/screenshots/mobile-390-appointment-popup-ar.png`
+- `frontend/test-results/screenshots/tablet-768-patient-form-ar.png`
+- `frontend/test-results/screenshots/mobile-390-patient-form-ar.png`
+- Dashboard captures at 1440, 1280, 768, and 390 px in light/dark/Arabic variants.
 
 ## Skipped and limitations
 
-- Backend lint/tests and Docker image builds were skipped in the current frontend-only
-  continuation; no backend or infrastructure file was modified. Existing Docker images
-  were started and all four services were verified running.
-- Axe coverage is targeted and is not a complete WCAG, legal, or clinical compliance
+- Backend lint/tests and backend/container builds were skipped for this frontend-only
+  task. No backend, database, migration, seed, or infrastructure file was modified.
+- The Playwright fixture successfully applied the repository’s existing Alembic
+  migrations (`0001`–`0003`) to its isolated SQLite database before the final run; this
+  is setup evidence, not validation of a new migration.
+- Axe coverage is targeted evidence, not a full WCAG, legal, privacy, or clinical safety
   certification.
-- Email/SMS/WhatsApp delivery is mocked, private documents use local filesystem storage,
-  and pharmacy features do not replace statutory or jurisdictional controls.
-- Patient and appointment forms use direct structured keys. Some secondary legacy
-  routes still use the central compatibility translator; the tested Arabic journeys
-  displayed translated content with correct document direction.
+- Iterative failed browser runs found and helped correct test-selector drift, patient-rail
+  layering, UTC rendering, and cancelled-status contrast. One build worker was terminated
+  by the host after successful compilation/type checking; the immediate constrained
+  rerun passed. Final outstanding failures: 0.

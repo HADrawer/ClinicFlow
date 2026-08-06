@@ -4,8 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 
 from ..audit import log
-from ..dependencies import Db, permission
+from ..config import settings
+from ..dependencies import Db, PERMISSION_CATALOG, grantable_permissions, permission
+from ..email_provider import EmailProvider, get_email_provider
+from ..email_templates import staff_invitation_email
 from ..models import (
+    DeliveryStatus,
     DoctorProfile,
     InvitationStatus,
     PasswordReset,
@@ -47,7 +51,54 @@ def invite_out(
 ) -> InvitationOut:
     invitation_state(invitation)
     result = InvitationOut.model_validate(invitation)
-    return result.model_copy(update={"demo_token": demo_token})
+    exposed_token = demo_token if not settings.is_production else None
+    return result.model_copy(update={"demo_token": exposed_token})
+
+
+def send_invitation_email(
+    db: Db,
+    owner: User,
+    invitation: StaffInvitation,
+    token: str,
+    provider: EmailProvider,
+) -> None:
+    invitation_link = f"{settings.app_base_url}/invite/{token}"
+    subject, html, text = staff_invitation_email(
+        full_name=invitation.full_name,
+        clinic_name=owner.clinic.name,
+        role=invitation.role.value,
+        invitation_link=invitation_link,
+        expires_at=invitation.expires_at,
+    )
+    result = provider.send(to=invitation.email, subject=subject, html=html, text=text)
+    invitation.delivery_attempts += 1
+    if result.success:
+        invitation.delivery_status = DeliveryStatus.sent
+        invitation.sent_at = datetime.now(timezone.utc)
+        invitation.last_delivery_error = None
+    else:
+        invitation.delivery_status = DeliveryStatus.failed
+        invitation.last_delivery_error = result.error
+    log(
+        db,
+        owner,
+        "invitation.email_sent" if result.success else "invitation.email_failed",
+        "staff_invitation",
+        invitation.id,
+        {"error": result.error} if not result.success else None,
+    )
+    if not result.success and result.error_type == "configuration":
+        db.commit()
+        raise HTTPException(502, result.error)
+
+
+@router.get("/staff/permission-catalog", response_model=dict)
+def permission_catalog(owner=Depends(staff_manager)):
+    grantable = grantable_permissions(owner)
+    return {
+        category: [name for name in names if name in grantable]
+        for category, names in PERMISSION_CATALOG.items()
+    }
 
 
 @router.get("/staff", response_model=list[UserOut])
@@ -130,7 +181,13 @@ def set_permissions(
     )
     if not staff:
         raise HTTPException(404, "Staff member not found")
-    staff.permissions = sorted(set(data.permissions))
+    requested = set(data.permissions)
+    disallowed = requested - grantable_permissions(owner)
+    if disallowed:
+        raise HTTPException(
+            403, f"You cannot grant: {', '.join(sorted(disallowed))}"
+        )
+    staff.permissions = sorted(requested)
     log(
         db,
         owner,
@@ -228,9 +285,16 @@ def create_invitation(
     data: InvitationCreate,
     db: Db,
     owner=Depends(staff_manager),
+    provider: EmailProvider = Depends(get_email_provider),
 ):
     if data.role == Role.owner:
         raise HTTPException(400, "Owner invitations are not supported")
+    requested = set(data.permissions)
+    disallowed = requested - grantable_permissions(owner)
+    if disallowed:
+        raise HTTPException(
+            403, f"You cannot grant: {', '.join(sorted(disallowed))}"
+        )
     if db.scalar(select(User).where(User.email == data.email.lower())):
         raise HTTPException(409, "Email already registered")
     existing = db.scalar(
@@ -253,6 +317,7 @@ def create_invitation(
         token_hash=digest,
         expires_at=datetime.now(timezone.utc) + timedelta(hours=data.expires_in_hours),
         profile_data=data.profile_data,
+        permissions=sorted(requested),
     )
     db.add(invitation)
     db.flush()
@@ -264,13 +329,54 @@ def create_invitation(
         invitation.id,
         {"role": data.role.value},
     )
+    send_invitation_email(db, owner, invitation, token, provider)
     db.commit()
     db.refresh(invitation)
     return invite_out(invitation, token)
 
 
+@router.patch("/invitations/{invitation_id}/permissions", response_model=InvitationOut)
+def update_invitation_permissions(
+    invitation_id: int,
+    data: StaffPermissionsUpdate,
+    db: Db,
+    owner=Depends(staff_manager),
+):
+    invitation = db.scalar(
+        select(StaffInvitation).where(
+            StaffInvitation.id == invitation_id,
+            StaffInvitation.clinic_id == owner.clinic_id,
+        )
+    )
+    if not invitation or invitation_state(invitation) != InvitationStatus.pending:
+        raise HTTPException(404, "Pending invitation not found")
+    requested = set(data.permissions)
+    disallowed = requested - grantable_permissions(owner)
+    if disallowed:
+        raise HTTPException(
+            403, f"You cannot grant: {', '.join(sorted(disallowed))}"
+        )
+    invitation.permissions = sorted(requested)
+    log(
+        db,
+        owner,
+        "invitation.permissions_changed",
+        "staff_invitation",
+        invitation.id,
+        {"permissions": invitation.permissions},
+    )
+    db.commit()
+    db.refresh(invitation)
+    return invite_out(invitation)
+
+
 @router.post("/invitations/{invitation_id}/resend", response_model=InvitationOut)
-def resend_invitation(invitation_id: int, db: Db, owner=Depends(staff_manager)):
+def resend_invitation(
+    invitation_id: int,
+    db: Db,
+    owner=Depends(staff_manager),
+    provider: EmailProvider = Depends(get_email_provider),
+):
     invitation = db.scalar(
         select(StaffInvitation).where(
             StaffInvitation.id == invitation_id,
@@ -282,9 +388,12 @@ def resend_invitation(invitation_id: int, db: Db, owner=Depends(staff_manager)):
     token, digest = new_single_use_token()
     invitation.token_hash = digest
     invitation.status = InvitationStatus.pending
-    invitation.expires_at = datetime.now(timezone.utc) + timedelta(hours=72)
+    invitation.expires_at = datetime.now(timezone.utc) + timedelta(
+        hours=settings.invitation_expiry_hours
+    )
     invitation.revoked_at = None
     log(db, owner, "invitation.resent", "staff_invitation", invitation.id)
+    send_invitation_email(db, owner, invitation, token, provider)
     db.commit()
     db.refresh(invitation)
     return invite_out(invitation, token)
@@ -343,7 +452,7 @@ def accept_invitation(data: InvitationAccept, db: Db):
         password_hash=hash_password(data.password),
         role=invitation.role,
         specialty=invitation.profile_data.get("specialty"),
-        permissions=invitation.profile_data.get("permissions", []),
+        permissions=invitation.permissions,
     )
     db.add(user)
     db.flush()

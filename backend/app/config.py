@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     private_upload_dir: str = "./private_uploads"
     max_upload_bytes: int = 10_485_760
+    environment: str = "development"
+    resend_api_key: str | None = None
+    resend_from_email: str | None = None
+    app_base_url: str = "http://localhost:3000"
+    invitation_expiry_hours: int = 72
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -45,6 +50,14 @@ class Settings(BaseSettings):
             for item in self.cors_origins.split(",")
             if item.strip()
         ]
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
+
+    @property
+    def resend_configured(self) -> bool:
+        return bool(self.resend_api_key and self.resend_from_email)
 
 
 @lru_cache

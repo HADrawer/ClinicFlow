@@ -16,6 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database import Base
+from .quick_create import DEFAULT_QUICK_CREATE_ACTIONS
 
 
 class Role(str, enum.Enum):
@@ -47,6 +48,12 @@ class InvitationStatus(str, enum.Enum):
     accepted = "accepted"
     expired = "expired"
     revoked = "revoked"
+
+
+class DeliveryStatus(str, enum.Enum):
+    pending = "pending"
+    sent = "sent"
+    failed = "failed"
 
 
 class EncounterStatus(str, enum.Enum):
@@ -97,10 +104,16 @@ class Clinic(Base):
     name: Mapped[str] = mapped_column(String(160))
     address: Mapped[str] = mapped_column(String(300), default="")
     phone: Mapped[str] = mapped_column(String(30), default="")
+    contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    timezone: Mapped[str] = mapped_column(String(60), default="Asia/Bahrain")
     logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     working_hours: Mapped[dict] = mapped_column(JSON, default=dict)
     pharmacy_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     feature_flags: Mapped[dict] = mapped_column(JSON, default=dict)
+    onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=True)
+    quick_create_actions: Mapped[list] = mapped_column(
+        JSON, default=lambda: list(DEFAULT_QUICK_CREATE_ACTIONS)
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -408,9 +421,18 @@ class StaffInvitation(Base):
         DateTime(timezone=True), nullable=True
     )
     profile_data: Mapped[dict] = mapped_column(JSON, default=dict)
+    permissions: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    delivery_status: Mapped[DeliveryStatus] = mapped_column(
+        Enum(DeliveryStatus), default=DeliveryStatus.pending
+    )
+    sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_delivery_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    delivery_attempts: Mapped[int] = mapped_column(default=0)
 
 
 class PasswordReset(Base):

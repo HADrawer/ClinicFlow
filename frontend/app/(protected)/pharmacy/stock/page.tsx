@@ -57,12 +57,12 @@ export default function Stock() {
                 const medicine = map.get(item.medicine_id);
                 return (
                   <div>
-                    <p className="font-semibold text-[#10212b]">
+                    <p className="font-semibold text-[var(--ink-950)]">
                       {medicine?.generic_name ||
                         `Medicine #${item.medicine_id}`}{" "}
                       · {medicine?.strength}
                     </p>
-                    <p className="text-xs text-[#52656e]">
+                    <p className="text-xs text-[var(--ink-500)]">
                       {medicine?.brand_name || "Generic"}
                     </p>
                   </div>
@@ -75,7 +75,7 @@ export default function Stock() {
               render: (item) => (
                 <div>
                   <p className="font-mono text-xs">{item.batch_number}</p>
-                  <p className="text-xs text-[#52656e]">
+                  <p className="text-xs text-[var(--ink-500)]">
                     {item.storage_location || "Unassigned"}
                   </p>
                 </div>
@@ -93,7 +93,7 @@ export default function Stock() {
                 return (
                   <div>
                     <p
-                      className={`font-medium tabular ${expired ? "text-[#b74242]" : near ? "text-[#9a6417]" : ""}`}
+                      className={`font-medium tabular ${expired ? "text-[var(--danger)]" : near ? "text-[var(--warning)]" : ""}`}
                     >
                       {shortDate(item.expiry_date)}
                     </p>
@@ -112,7 +112,7 @@ export default function Stock() {
               render: (item) => (
                 <div className="tabular">
                   <strong>{item.quantity_available}</strong>
-                  <span className="text-[#52656e]">
+                  <span className="text-[var(--ink-500)]">
                     {" "}
                     / {item.quantity_received}
                   </span>
@@ -195,9 +195,9 @@ function Adjustment({
   return (
     <form className="space-y-4 p-5" onSubmit={submit}>
       <ErrorMessage message={error} />
-      <p className="text-sm text-[#52656e]">
+      <p className="text-sm text-[var(--ink-500)]">
         Current available quantity:{" "}
-        <strong className="tabular text-[#10212b]">
+        <strong className="tabular text-[var(--ink-950)]">
           {batch.quantity_available}
         </strong>
       </p>
@@ -221,7 +221,7 @@ function Adjustment({
           minLength={3}
         />
       </Field>
-      <div className="flex justify-end gap-2 border-t border-[#d6e1de] pt-4">
+      <div className="flex justify-end gap-2 border-t border-[var(--line)] pt-4">
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancel
         </Button>

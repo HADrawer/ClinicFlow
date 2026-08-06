@@ -18,13 +18,13 @@ export default function AuthLayout({children}:{children:React.ReactNode}){
       <div>
         <div className="flex items-center gap-2.5 text-xl font-semibold"><span className="grid h-9 w-9 place-items-center rounded-[4px] bg-[var(--gulf-teal)]"><Activity size={21}/></span>{t("app.name")}</div>
         <div className="mt-24 max-w-xl">
-          <p className="text-xs font-semibold uppercase tracking-[.18em] text-[#87bbb8]">{t("app.clinicalCurrent")}</p>
+          <p className="text-xs font-semibold uppercase tracking-[.18em] text-white/70">{t("app.clinicalCurrent")}</p>
           <h1 className="mt-4 text-[2.65rem] font-semibold leading-[1.08] tracking-[-.035em]">{t("auth.onePatientJourney")}</h1>
-          <p className="mt-5 max-w-lg text-base leading-7 text-[#c7d9dd]">{t("auth.productSummary")}</p>
-          <div className="mt-10 grid gap-4 text-sm text-[#dbe8ea]">{assurances.map(key=><div className="flex items-center gap-3" key={key}><CheckCircle2 size={17} className="text-[#55b9b2]"/>{t(key)}</div>)}</div>
+          <p className="mt-5 max-w-lg text-base leading-7 text-white/80">{t("auth.productSummary")}</p>
+          <div className="mt-10 grid gap-4 text-sm text-white/85">{assurances.map(key=><div className="flex items-center gap-3" key={key}><CheckCircle2 size={17} className="text-[var(--gulf-teal)]"/>{t(key)}</div>)}</div>
         </div>
       </div>
-      <div className="flex items-center gap-2 border-t border-white/10 pt-5 text-xs text-[#9bb9c0]"><ShieldCheck size={15}/>{t("app.developmentWorkspace")}</div>
+      <div className="flex items-center gap-2 border-t border-white/10 pt-5 text-xs text-white/70"><ShieldCheck size={15}/>{t("app.developmentWorkspace")}</div>
     </aside>
   </main>;
 }

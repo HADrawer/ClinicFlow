@@ -13,3 +13,5 @@ postgres_data/
 private_uploads/
 test-results/
 playwright-report/
+.vercel
+.env*

@@ -171,7 +171,7 @@ def download_link(
         algorithm=settings.jwt_algorithm,
     )
     return {
-        "url": f"/api/documents/download/{token}",
+        "url": f"/documents/download/{token}",
         "expires_in_seconds": 300,
     }
 

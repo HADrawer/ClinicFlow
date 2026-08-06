@@ -1,5 +1,5 @@
 export type Role="owner"|"doctor"|"receptionist"|"accountant"|"nurse"|"pharmacist";
-export interface Clinic{id:number;name:string;address:string;phone:string;logo_url?:string;working_hours:Record<string,string>;pharmacy_enabled:boolean;feature_flags:Record<string,boolean>}
+export interface Clinic{id:number;name:string;address:string;phone:string;contact_email?:string;timezone:string;logo_url?:string;working_hours:Record<string,string>;pharmacy_enabled:boolean;feature_flags:Record<string,boolean>;onboarding_completed:boolean;quick_create_actions:string[]}
 export interface User{id:number;clinic_id:number;email:string;full_name:string;role:Role;specialty?:string;clinic?:Clinic;is_active:boolean;permissions:string[];last_login_at?:string}
 export interface Patient{id:number;clinic_id:number;patient_number?:string;full_name:string;arabic_name?:string;preferred_name?:string;phone:string;cpr_number?:string;date_of_birth?:string;gender?:string;nationality?:string;allergies?:string;chronic_conditions?:string;current_medications?:string;emergency_contact_name?:string;emergency_contact_phone?:string;notes?:string;preferred_language:string;communication_consent:boolean;treatment_consent_state:string;created_at:string}
 export interface Service{id:number;name:string;price:string;duration_minutes:number;active:boolean}

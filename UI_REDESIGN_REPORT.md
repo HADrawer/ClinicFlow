@@ -1,177 +1,165 @@
 # ClinicFlow UI redesign report
 
-Date: 2026-07-30 (Asia/Bahrain)
+Date: 2026-08-04 (Asia/Bahrain)
 
-## Current redesign iteration
+## Scope and audit
 
-- Rebuilt the light and dark application shell to match the supplied clinical dashboard
-  references: white operational chrome and a cool-gray workspace in light mode, unified
-  slate navigation and work surfaces in dark mode, compact Mulish-style typography,
-  cyan active navigation, thin borders, and restrained radii and shadows.
-- Reproduced the reported patient-name hover defect in a real dark-mode browser
-  (`#f6faf9` was leaking into the dark table state). Data rows now use semantic hover
-  and focus tokens; the verified dark hover remains slate (`rgb(61, 70, 95)`) while the
-  patient link remains cyan (`rgb(107, 200, 234)`).
-- Migrated the shared buttons, controls, cards, table rows, data links, badges, dialogs,
-  alerts, loading indicators, empty states, top bar, and mobile navigation onto the
-  Clinical Current token system. Route-level appointment calendar, patient, billing,
-  dashboard, pharmacy, and settings controls were aligned with the same system.
-- Added a complete light, dark, and system appearance model. The resolved theme is
-  applied before hydration, manual choices persist in the browser, system mode follows
-  the device preference, and controls are available on authentication screens, the app
-  top bar, and Settings.
-- Extended the Clinical Current token layer for dark surfaces, raised workspaces,
-  borders, text, focus, chart, safety, and status colors. An Axe finding on the original
-  dark filled-action cyan was fixed by increasing its contrast against white text.
-- Refined the owner dashboard desktop split so the operational appointment table keeps
-  its status column visible at 1280 and 1440 px. Database-derived chart bars now include
-  visible numeric labels and use theme tokens.
-- Migrated patient registration and appointment booking from compatibility-only text
-  translation to direct semantic keys for labels, hints, options, validation errors,
-  placeholders, and actions.
+This iteration is frontend-only. The system expansion specification, frontend README,
+route tree, shared layout, UI primitives, API client, authentication/session flow,
+localization layer, frontend tests, and the existing backend routes/models/schemas were
+audited before implementation. Backend files were read only; no API contract, database
+model, migration, seed, permission rule, infrastructure file, or backend test was changed.
 
-## Scope and page inventory
+The frontend page inventory covered authentication, role dashboards, appointments,
+queue, waitlist, patients, encounters, prescriptions, orders, messages, staff, settings,
+reports, quality, insurance, billing, and all pharmacy routes. The broad redesign work
+was limited to the shared application shell and the patient/appointment workflows where
+the existing API can support real popup-first behavior.
 
-The frontend route tree, shared layout, API client and hooks, localization layer,
-authentication/session handling, browser tests, and the read-only backend route and
-schema contracts were audited before the redesign continued. The audited route groups
-were:
+## Pages and workflows redesigned
 
-- Authentication: login, registration, invitation acceptance, forgot password, and
-  password reset.
-- Operations: role dashboards, appointments (calendar, list, creation, and detail),
-  queue, waitlist, patients (list, registration, and record), encounters,
-  prescriptions, orders, and messages.
-- Administration: staff, settings, reports, quality, insurance, invoices, and billing.
-- Pharmacy: dashboard, medicines, stock and batches, purchases, suppliers,
-  prescriptions, dispensing, counts, and reports.
+- Reworked the application shell with a permission-aware global Quick Create menu,
+  persistent Clinical Current navigation, and space-aware desktop/mobile patient context.
+- Rebuilt the appointment index as an operational day/week/month/list schedule with
+  provider, room, status, and patient/CPR search filters; localized Today/period controls;
+  empty-slot creation; status styling; quick details; in-place edit/reschedule; and
+  check-in actions.
+- Refactored appointment creation and editing onto one reusable form used by both full
+  pages and dialogs. It uses server-backed patient search, provider search, a nested Add
+  Patient dialog, custom calendar and time controls, 15/30/45-minute duration choices,
+  calculated API end time, conflict display, dirty-close protection, and double-submit
+  protection.
+- Refactored patient registration onto one reusable full-page/dialog form with normalized
+  CPR, required CPR/DOB/gender/phone/name for new records, strict past-DOB validation,
+  duplicate checks and acknowledgment, backend field-error mapping, dirty-close
+  protection, and compact quick-create mode.
+- Updated the patient list to use popup creation, debounced server search, file-number and
+  CPR columns, clinical warnings, specific empty/search-empty states, and an explicit
+  “Keep in workspace” action.
+- Added a selected-patient context scoped to clinic and signed-in user. Only the patient
+  ID is stored in session storage; the current API response is revalidated after reload.
+  Desktop uses an RTL-aware rail; mobile uses a compact chip and expandable sheet.
+- Connected staff Quick Create to the existing secure invitation dialog via
+  `/staff?invite=1`, without duplicating the invitation form or service logic.
 
-All routes remain connected to their existing API hooks. No backend endpoint, payload,
-schema, migration, seed, permission, or database behavior was changed.
+## Shared components and design system
 
-## Pages redesigned
+- Upgraded the shared modal into reusable dialog/sheet infrastructure with focus trap,
+  focus restoration, nested-dialog awareness, Escape/backdrop handling, accessible title
+  and description wiring, body scroll lock, dirty-form confirmation, and mobile
+  full-screen behavior.
+- Added a reusable debounced search combobox, application-controlled date picker,
+  application-controlled working-hours time picker, duration selector, patient/provider
+  result rows, and patient-context primitives.
+- Extended the Clinical Current token layer with restrained dialog/popover elevation,
+  dense schedule grids, status-specific appointment treatments, RTL logical properties,
+  patient-safety treatments, responsive patient rail behavior, and focused mobile sheets.
+- Added normalized UTC parsing for naïve timestamps returned by the existing API so
+  stored UTC appointments render in the correct local schedule hour.
+- Updated the API error type to surface Pydantic field errors inside reusable forms.
+- Kept UI permission checks as affordances only; every mutation still goes through the
+  existing backend authorization.
 
-- Rebuilt the authenticated application shell around the Clinical Current direction:
-  mineral navy navigation, Gulf teal actions, compact operational typography,
-  role-specific navigation groups, current-location treatment, accessible mobile
-  navigation, and localized session controls.
-- Rebuilt the login, registration, and authentication shell with clinic-specific
-  assurance content, visible labels, mixed-direction credential handling, clear
-  submission states, and restrained clinical styling.
-- Refined the role dashboard experiences for Owner, Doctor, Receptionist, Pharmacist,
-  Accountant, and other seeded roles. Operational metrics now use a dense metric strip;
-  appointment, audit, pharmacy, billing, and action content is role-specific and
-  localized.
-- Reworked the patient list into an information-dense clinical table with visible
-  search labeling, patient-safety allergy warnings, specific empty/search-empty states,
-  localized actions, and readable CPR/phone values in both directions.
-- Refined appointments, queue, billing, pharmacy dashboard, and pharmacy stock screens
-  to share the Clinical Current hierarchy, status language, spacing, and responsive
-  behavior. Appointment date/time rendering now follows the active locale.
-- On narrow dashboard screens, the desktop appointments table becomes a deliberate
-  stacked operational list. Wide clinical data tables retain their columns inside a
-  keyboard-focusable horizontal scroll region instead of compressing critical data.
+## English, Arabic, RTL, and responsive status
 
-## Shared components and design tokens
-
-- Updated the application shell, page headers, buttons, inputs, cards, badges, tables,
-  modals, feedback/loading states, empty states, and the new metric strip.
-- Added reusable mineral navy, Gulf teal, clinical neutral, focus, status, border, and
-  surface styling in the global token layer. Corners, shadows, and density are varied by
-  component purpose rather than applying a generic card treatment everywhere.
-- Added a reusable theme provider, compact theme switcher, three-way appearance control,
-  pre-hydration theme resolution, persistence tests, and theme-aware chart rendering.
-- Added a skip link, visible focus treatment, accessible navigation labels, dialog and
-  icon-button names, localized scroll-region labels, and table keyboard access.
-- Added locale-aware date, weekday, month, time, currency, and number formatting helpers.
-  Directional calendar icons mirror in RTL; universal icons do not.
-- The final anti-AI audit found no purple/indigo gradients, glassmorphism, decorative
-  blobs, fake charts, oversized operational headings, nested card grids, or decorative
-  unsupported metrics in the changed interface. The remaining elevated shadow belongs
-  to the floating profile menu.
-
-## English, Arabic, and RTL status
-
-- Runtime switching between English and Arabic is implemented and persisted across
-  refreshes. The active language updates the document `lang` and `dir` attributes.
-- Light, dark, and system appearance choices work in both languages and directions.
-- Navigation, authentication, role dashboards, patients, appointment formatting,
-  states, validation, controls, accessible names, audit actions, and workflow labels are
-  localized through structured translation keys.
-- Legacy workflow screens still use the central compatibility translator while they are
-  incrementally migrated to direct `t()` calls. No untranslated visible text was found
-  in the tested Arabic journeys.
-- Arabic browser validation covered login, navigation, language persistence, the RTL
-  sidebar, dashboard, appointment calendar/list, patient form, tables, dialogs, and the
-  switch back to English. Mixed phone, email, CPR, and identifier values retain LTR
-  readability inside RTL layouts.
+- All newly visible workflow labels, validation messages, accessible names, empty/error
+  text, dialog copy, schedule controls, and patient-context actions use structured English
+  and Arabic translation keys.
+- Runtime language persistence and document `lang`/`dir` switching remain intact.
+- RTL inspection covered the right-side navigation, mirrored directional controls,
+  appointment list, Arabic mobile appointment sheet, custom controls, patient form,
+  mixed English patient/provider values, numbers, CPRs, and phone values.
+- Visual inspection covered 1440×900, 1280×800, 768×1024, and 390×844. The selected
+  patient rail deliberately narrows the desktop workspace; its filters reflow at 1280,
+  while the calendar retains keyboard-accessible horizontal scrolling instead of hiding
+  clinical data.
+- Mobile appointment dialogs become full-screen scroll containers with a persistent
+  action bar. Mobile patient context is separate from the desktop rail, with no duplicate
+  chip at desktop widths.
 
 ## Role-based review
 
-- Owner: clinic oversight, staff lifecycle, invitations, permissions, settings, audit,
-  and module visibility.
-- Doctor: today's schedule, patient context, queue, appointment management, encounter,
-  prescribing, and follow-up.
-- Reception: patient registration/search, appointment booking, check-in, queue, and
-  invoice handoff.
-- Pharmacist: purchases, dated batch receipt, stock, prescriptions, dispensing, and
-  immutable label preview.
-- Accountant and the remaining seeded roles: distinct permitted navigation and
-  dashboard content. Pharmacy navigation is hidden when the clinic module is disabled.
+- Owner: Quick Create for patients, appointments, and staff invitations; full operational
+  navigation; schedule controls; staff/setup recovery when no doctor exists.
+- Doctor: own provider is preselected and locked unless existing manage-all permission is
+  present; patient, encounter, and follow-up journeys remain intact.
+- Reception: schedule-slot booking, nested patient registration, check-in, queue, selected
+  patient context, and invoice handoff were exercised end to end.
+- Nurse, accountant, and pharmacist: navigation reflects role baselines plus explicit
+  backend permission grants. Pharmacist patient access is retained because it is part of
+  the existing backend permission template and supports safe dispensing context.
+- Disabled pharmacy clinics still hide the pharmacy module and receive the existing API
+  denial.
 
-## Responsive and visual inspection
+## Visual and anti-AI audit
 
-The following viewports were exercised by the browser suite and visually inspected from
-captured screenshots:
-
-| Viewport | Modes and workflows inspected | Result |
-|---|---|---|
-| 1440 x 900 | English/Arabic dashboards, dark dashboard, appointments, staff | Passed |
-| 1280 x 800 | English dashboard and dense operational layout | Passed |
-| 768 x 1024 | Dashboard and Arabic patient form | Passed |
-| 390 x 844 | Dashboard, Arabic patient form, and patient table scrolling | Passed |
-
-The automated page-overflow assertion passed at every required width. The 390 px patient
-table keeps a 680 px internal table inside a 364 px scroll container while the page stays
-at the 390 px viewport width.
+- The changed interface uses compact operational typography, thin borders, restrained
+  radii/shadows, tables and schedule grids for structured data, and workflow-specific
+  actions. It does not introduce gradients, glassmorphism, decorative blobs, generic
+  startup copy, fake charts, unsupported metrics, giant operational headings, nested card
+  grids, or ornamental animation.
+- Direct screenshot review fixed a desktop account-menu/patient-rail layer conflict, a
+  duplicate desktop patient chip, cramped 1280px filters, UTC schedule placement, and
+  cancelled-appointment secondary-text contrast.
+- Remaining intentional behavior: week calendars can scroll horizontally on constrained
+  widths, and long full-screen mobile forms scroll inside the sheet. The black “N” control
+  visible in development screenshots is the Next.js development toolbar and is absent
+  from the production build.
 
 ## Commands executed and results
 
 | Command | Result |
 |---|---|
-| `cd frontend && npm run lint` | Passed |
+| `cd frontend && npm run lint` | Passed; no warnings or errors |
 | `cd frontend && npm run typecheck` | Passed |
-| `cd frontend && npm test -- --run` | Passed; 4 files, 7 tests |
-| `cd frontend && npm run build` | Passed; 32 static pages generated and all listed routes compiled |
-| `cd frontend && PLAYWRIGHT_CHROMIUM_PATH=/home/hashem/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome npx playwright test` | Passed; 6 journeys in 1.0 minute |
-| Axe scans in light and dark owner journeys | Passed; no serious or critical findings |
-| `docker compose config --quiet` and `docker compose up -d backend frontend` | Passed; database healthy and app/API reachable |
+| `cd frontend && npm test -- --run` | Passed; 9 files, 15 tests |
+| `cd frontend && NEXT_PRIVATE_BUILD_WORKER=1 npm run build` | Passed; production compilation succeeded and 32/32 static pages were generated |
+| `cd frontend && PLAYWRIGHT_CHROMIUM_PATH=/home/hashem/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome npx playwright test --reporter=list` | Passed; 6/6 journeys in 1.6 minutes |
+| Axe WCAG 2 A/AA/2.1 AA/2.2 AA scans | Passed; no critical or serious violations in the final core owner/dashboard/appointment-dialog scans |
+| Responsive overflow assertions | Passed at 1440, 1280, 768, and 390 px |
+| Clean browser migration setup | Passed existing migrations `0001` through `0003` against the isolated E2E SQLite database |
 
-The final E2E run used a clean migrated/seeded browser test database. Iterative Axe
-checks exposed secondary text, avatar, warning-status, and filled-action contrast
-issues; the tokens were corrected and the final uninterrupted 6/6 run passed both
-theme scans.
+Final failures: none. One preceding build attempt compiled and type-checked, then its
+page-data worker received a host `SIGTERM`; the immediate resource-constrained rerun
+completed successfully. Iterative browser runs exposed stale selectors, the patient-rail
+layer conflict, naïve UTC parsing, and cancelled-status contrast; all were corrected
+before the final uninterrupted 6/6 run. Backend tests, backend lint, backend image builds,
+and production database migrations were not run because this work is strictly
+frontend-only and changed no backend or infrastructure file.
 
-## Skipped validation
+## Backend limitations and intentionally deferred requirements
 
-- Backend lint, backend unit tests, and Docker image builds were not rerun because this
-  continuation was explicitly frontend-only and no backend or infrastructure file was
-  changed. Docker configuration, startup, service health, and frontend/API reachability
-  were rerun on 2026-07-30.
-- The Axe journey is targeted evidence for the core owner workflow, not a complete WCAG
-  2.2, clinical-safety, or legal compliance certification.
-
-## Backend limitations and remaining issues
-
-- Email, SMS, and WhatsApp delivery remain mocked by the backend; development flows
-  expose invitation and reset links directly.
-- Private documents still use local filesystem storage. Production requires encrypted
-  object storage, malware scanning, managed keys, retention, and backup policies.
-- Pharmacy workflows remain operational software and do not replace statutory registers
-  or jurisdiction-specific professional controls.
-- Patient registration and appointment booking now use direct semantic keys. Some
-  older secondary routes still use the central compatibility translator and should be
-  migrated incrementally; tested Arabic workflows rendered translated UI and correct
-  RTL behavior.
-- No unsupported frontend action or fake persistence was introduced. Features absent
-  from the existing backend remain omitted rather than simulated.
+- The backend does not require CPR or reject DOB today/future. The frontend now enforces
+  those rules for its forms, but authoritative server enforcement needs backend schema,
+  model, conflict, migration, and test changes outside this task’s permitted scope.
+- Patient search supports name, CPR, and phone but not file number; the UI does not claim
+  unsupported file-number search. Provider search remains doctor-only and lacks an
+  explicit `is_bookable_provider` flag, phone search, and availability response.
+- The existing appointment API requires start and end timestamps. The frontend calculates
+  end time from 15/30/45 minutes, but the backend does not yet calculate or restrict
+  duration and has no clinic-configurable default duration contract.
+- Rooms remain the existing free-text, conflict-checked appointment field. Managed rooms,
+  provider-room many-to-many assignments, room search, and room administration require
+  backend support.
+- Patient/staff photographs and secure private object-storage identifiers are absent from
+  the API. Default initials are used; no local-only upload or fake storage was added.
+- Family relationships, inverse mapping, family tabs/tree, and shared household insights
+  have no backend models or endpoints and were not simulated.
+- Existing permissions are role baselines plus explicit grants; revocations, inherited
+  versus explicit state, audited permission editing, and an effective-permissions endpoint
+  are not available, so no misleading permission editor was added.
+- Database-persisted clinic onboarding, bookable-provider completion rules, and resumable
+  setup APIs do not exist. The frontend cannot truthfully gate the dashboard with local
+  completion state.
+- Invitations use the existing development token flow. Resend delivery, hashed provider
+  abstraction, delivery state, production configuration errors, Arabic email templates,
+  and invitation rate limiting require backend work.
+- Appointment templates, relational procedures, group participants, pins, recalls,
+  packages/plans, reminder preferences, and waiting-time analytics are not supported by
+  the existing API and remain omitted rather than faked.
+- Patient 360 remains the existing backend aggregation. New timeline event families,
+  sensitive-field permission slicing, family data, photos, and financial/clinical
+  expansions require backend capabilities.
+- Some unchanged legacy routes still rely on the central compatibility translator rather
+  than direct semantic keys. The changed popup-first patient and appointment surfaces are
+  fully keyed; a repository-wide localization rewrite was intentionally avoided.

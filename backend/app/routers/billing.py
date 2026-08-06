@@ -3,20 +3,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, selectinload
 from ..audit import log
-from ..dependencies import Db, roles
+from ..dependencies import Db, permission
 from ..models import (
     Appointment,
     Invoice,
     InvoiceItem,
     Patient,
     PaymentStatus,
-    Role,
     Visit,
 )
 from ..schemas import InvoiceCreate, InvoiceOut
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
-allowed = roles(Role.owner, Role.receptionist, Role.accountant)
+allowed = permission("billing.create")
 
 
 def query(user):
