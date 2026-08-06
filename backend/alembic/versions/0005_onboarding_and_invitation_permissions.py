@@ -1,5 +1,6 @@
 """Add clinic onboarding state and first-class invitation permissions."""
 
+import json
 from alembic import op
 import sqlalchemy as sa
 
@@ -59,9 +60,17 @@ def upgrade():
         granted = (profile_data or {}).get("permissions") if profile_data else None
         if granted:
             bind.execute(
-                invitations.update()
-                .where(invitations.c.id == invitation_id)
-                .values(permissions=list(granted))
+                sa.text(
+                    """
+                    UPDATE staff_invitations
+                    SET permissions = CAST(:permissions AS JSON)
+                    WHERE id = :invitation_id
+                    """
+                ),
+                {
+                    "permissions": json.dumps(sorted(granted)),
+                    "invitation_id": invitation_id,
+                },
             )
 
 
