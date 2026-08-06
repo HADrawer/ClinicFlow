@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -44,6 +44,10 @@ def validate_refs(db, user, patient_id=None, staff_id=None):
         select(User).where(User.id == staff_id, User.clinic_id == user.clinic_id)
     ):
         raise HTTPException(400, "Invalid staff member")
+
+
+def as_utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
 
 
 def row(item):
@@ -97,6 +101,8 @@ def create_incident(
     data: IncidentIn, db: Db, user=Depends(permission("quality.manage"))
 ):
     validate_refs(db, user, data.patient_id, data.owner_id)
+    if as_utc(data.occurred_at) > datetime.now(timezone.utc) + timedelta(minutes=5):
+        raise HTTPException(422, "Incident time cannot be in the future")
     item = Incident(
         clinic_id=user.clinic_id, created_by_id=user.id, **data.model_dump()
     )

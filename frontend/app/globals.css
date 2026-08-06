@@ -425,6 +425,8 @@ html[data-theme="dark"] .patient-avatar { background: var(--action); color: #fff
 }
 .alert-danger { border-color: color-mix(in srgb,var(--danger) 46%,var(--line)); border-inline-start-color: var(--danger); background: color-mix(in srgb,var(--danger) 8%,var(--surface)); color: var(--danger); }
 .alert-success { border-color: color-mix(in srgb,var(--success) 44%,var(--line)); border-inline-start-color: var(--success); background: color-mix(in srgb,var(--success) 8%,var(--surface)); color: var(--success); }
+.alert-warning { border-color: color-mix(in srgb,var(--warning) 46%,var(--line)); border-inline-start-color: var(--warning); background: color-mix(in srgb,var(--warning) 10%,var(--surface)); color: var(--warning); }
+.alert-info { border-color: color-mix(in srgb,var(--gulf-teal) 40%,var(--line)); border-inline-start-color: var(--gulf-teal); background: var(--teal-soft); color: var(--action); }
 .empty-state__icon {
   display: grid;
   width: 2.5rem;

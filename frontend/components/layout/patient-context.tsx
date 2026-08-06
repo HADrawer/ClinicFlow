@@ -1,15 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import {useMemo,useState} from "react";
 import {AlertTriangle,CalendarPlus,ChevronDown,CircleX,CreditCard,ExternalLink,Phone} from "lucide-react";
 import {Button} from "@/components/ui/button";
+import {Modal} from "@/components/ui/modal";
 import {useI18n} from "@/lib/i18n";
 import {useAuth} from "@/lib/auth";
 import {useSelectedPatient} from "@/lib/selected-patient";
 import {hasPermission} from "@/lib/permissions";
 import {apiDate,shortDate} from "@/lib/utils";
 import {useQuickCreate} from "@/lib/quick-create";
+import {PatientDetailContent} from "@/components/patient/patient-detail-content";
 
 function age(date?:string){
   if(!date)return null;
@@ -21,10 +22,11 @@ function age(date?:string){
 
 export function PatientContextRail(){
   const {detail,clearPatient}=useSelectedPatient();
-  const {openAppointment}=useQuickCreate();
+  const {openAppointment,openInvoice}=useQuickCreate();
   const {user}=useAuth();
   const {t,label}=useI18n();
   const [mobileOpen,setMobileOpen]=useState(false);
+  const [fullRecordOpen,setFullRecordOpen]=useState(false);
   const visits=useMemo(()=>detail?.visits||[],[detail]);
   if(!detail)return null;
   const patient=detail.patient;
@@ -60,14 +62,17 @@ export function PatientContextRail(){
           {hasPermission(user,"billing.create")&&<Fact label={t("patientContext.openBalance")} value={balance?`${balance.toFixed(3)} BHD`:t("common.none")}/>} 
         </dl>
         <div className="space-y-2 border-t border-[var(--line)] p-4">
-          <Link className="button-base button-secondary w-full" href={`/patients/${patient.id}`} onClick={()=>setMobileOpen(false)}><ExternalLink size={15}/>{t("patientContext.openRecord")}</Link>
+          <Button className="w-full" variant="secondary" onClick={()=>{setMobileOpen(false);setFullRecordOpen(true)}}><ExternalLink size={15}/>{t("patientContext.openRecord")}</Button>
           {hasPermission(user,"appointments.manage_own")||hasPermission(user,"appointments.manage_all")?<Button className="w-full" onClick={()=>{setMobileOpen(false);openAppointment({patient})}}><CalendarPlus size={15}/>{t("appointments.new")}</Button>:null}
-          {hasPermission(user,"billing.create")&&<Link className="button-base button-secondary w-full" href={`/billing/new?patient=${patient.id}`} onClick={()=>setMobileOpen(false)}><CreditCard size={15}/>{t("forms.createInvoice")}</Link>}
+          {hasPermission(user,"billing.create")&&<Button className="w-full" variant="secondary" onClick={()=>{setMobileOpen(false);openInvoice()}}><CreditCard size={15}/>{t("forms.createInvoice")}</Button>}
           <Button className="w-full" variant="ghost" onClick={()=>{clearPatient();setMobileOpen(false)}}><CircleX size={15}/>{t("patientContext.clear")}</Button>
         </div>
       </div>
     </aside>
-    {mobileOpen&&<button className="patient-context-backdrop lg:hidden" onClick={()=>setMobileOpen(false)} aria-label={t("common.close")}/>} 
+    {mobileOpen&&<button className="patient-context-backdrop lg:hidden" onClick={()=>setMobileOpen(false)} aria-label={t("common.close")}/>}
+    <Modal open={fullRecordOpen} onClose={()=>setFullRecordOpen(false)} title={patient.full_name} description={t("patientContext.openRecord")} size="max-w-6xl">
+      <PatientDetailContent id={String(patient.id)} openFullPageHref={`/patients/${patient.id}`}/>
+    </Modal>
   </>;
 }
 

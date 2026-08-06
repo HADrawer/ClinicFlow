@@ -91,6 +91,44 @@ ROLE_PERMISSIONS: dict[Role, set[str]] = {
     },
 }
 
+# The full catalog of individually grantable permissions, grouped for display.
+# Every string here already gates a real endpoint (see permission(...) usage
+# across app/routers/); nothing here is aspirational.
+PERMISSION_CATALOG: dict[str, list[str]] = {
+    "Patients": ["patients.read", "patients.create", "patients.update"],
+    "Appointments & queue": [
+        "appointments.read_own",
+        "appointments.manage_own",
+        "appointments.read_all",
+        "appointments.manage_all",
+        "queue.manage",
+        "waitlist.manage",
+    ],
+    "Clinical records": [
+        "encounters.create",
+        "encounters.finalize",
+        "encounters.amend",
+        "prescriptions.create",
+        "orders.manage",
+        "referrals.manage",
+        "consents.manage",
+    ],
+    "Documents & messaging": ["documents.manage", "messages.create"],
+    "Billing & insurance": ["billing.create", "claims.manage"],
+    "Pharmacy": [
+        "pharmacy.read",
+        "pharmacy.dispense",
+        "pharmacy.inventory_manage",
+        "pharmacy.purchase_manage",
+    ],
+    "Quality & reporting": ["quality.manage", "reports.view"],
+    "Administration": ["staff.manage", "settings.manage"],
+}
+
+ALL_PERMISSIONS: set[str] = {
+    name for names in PERMISSION_CATALOG.values() for name in names
+}
+
 
 def has_permission(user: User, name: str) -> bool:
     granted = ROLE_PERMISSIONS.get(user.role, set()) | set(user.permissions or [])
@@ -104,3 +142,16 @@ def permission(*names: str):
         return user
 
     return check
+
+
+def grantable_permissions(user: User) -> set[str]:
+    """Permissions this user is allowed to hand out to others.
+
+    Owners (role permission "*") may grant anything in the catalog; everyone
+    else may only grant permissions they themselves currently hold, so staff
+    can never escalate a colleague past their own access.
+    """
+    granted = ROLE_PERMISSIONS.get(user.role, set()) | set(user.permissions or [])
+    if "*" in granted:
+        return set(ALL_PERMISSIONS)
+    return granted & ALL_PERMISSIONS

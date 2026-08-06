@@ -9,9 +9,11 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from .config import settings
 from .models import (
     AppointmentStatus,
     ClaimStatus,
+    DeliveryStatus,
     DispenseStatus,
     EncounterStatus,
     InvitationStatus,
@@ -59,10 +61,14 @@ class ClinicOut(ORM):
     name: str
     address: str
     phone: str
+    contact_email: str | None
+    timezone: str
     logo_url: str | None
     working_hours: dict
     pharmacy_enabled: bool
     feature_flags: dict
+    onboarding_completed: bool
+    quick_create_actions: list[str]
 
 
 class UserOut(ORM):
@@ -404,8 +410,11 @@ class InvitationCreate(BaseModel):
     email: Email
     full_name: str = Field(min_length=2)
     role: Role
-    expires_in_hours: int = Field(default=72, ge=1, le=168)
+    expires_in_hours: int = Field(
+        default_factory=lambda: settings.invitation_expiry_hours, ge=1, le=168
+    )
     profile_data: dict = {}
+    permissions: list[str] = []
 
 
 class InvitationAccept(BaseModel):
@@ -425,7 +434,12 @@ class InvitationOut(ORM):
     accepted_at: datetime | None
     revoked_at: datetime | None
     profile_data: dict
+    permissions: list[str]
     created_at: datetime
+    delivery_status: DeliveryStatus
+    sent_at: datetime | None
+    last_delivery_error: str | None
+    delivery_attempts: int
     demo_token: str | None = None
 
 

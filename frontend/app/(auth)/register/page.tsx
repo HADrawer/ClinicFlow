@@ -24,9 +24,9 @@ export default function Register(){
   }
 
   return <div className="w-full max-w-lg">
-    <p className="text-xs font-semibold uppercase tracking-[.16em] text-[#167d78]">{t("app.clinicalCurrent")}</p>
-    <h1 className="mt-3 text-3xl font-semibold tracking-[-.03em] text-[#10212b]">{t("auth.createWorkspace")}</h1>
-    <p className="mt-2 text-sm text-[#52656e]">{t("auth.createWorkspaceDescription")}</p>
+    <p className="text-xs font-semibold uppercase tracking-[.16em] text-[var(--gulf-teal)]">{t("app.clinicalCurrent")}</p>
+    <h1 className="mt-3 text-3xl font-semibold tracking-[-.03em] text-[var(--ink-950)]">{t("auth.createWorkspace")}</h1>
+    <p className="mt-2 text-sm text-[var(--ink-500)]">{t("auth.createWorkspaceDescription")}</p>
     <form onSubmit={submit} className="mt-7 grid gap-4 sm:grid-cols-2">
       <div className="sm:col-span-2"><ErrorMessage message={error}/></div>
       <div className="sm:col-span-2"><Field label={t("auth.clinicName")} required><Input autoFocus value={data.clinic_name} onChange={event=>set("clinic_name",event.target.value)} required/></Field></div>
@@ -36,6 +36,6 @@ export default function Register(){
       <div className="sm:col-span-2"><Field label={t("auth.password")} required hint={t("forms.eightCharacters")}><Input type="password" autoComplete="new-password" minLength={8} value={data.password} onChange={event=>set("password",event.target.value)} required/></Field></div>
       <div className="sm:col-span-2"><Button className="w-full" disabled={busy}>{busy?t("auth.creatingWorkspace"):t("auth.createWorkspaceAction")}</Button></div>
     </form>
-    <p className="mt-5 text-center text-sm text-[#52656e]">{t("auth.alreadyRegistered")} <Link className="font-semibold text-[#0f625f] hover:underline" href="/login">{t("auth.signIn")}</Link></p>
+    <p className="mt-5 text-center text-sm text-[var(--ink-500)]">{t("auth.alreadyRegistered")} <Link className="font-semibold text-[var(--link)] hover:underline" href="/login">{t("auth.signIn")}</Link></p>
   </div>;
 }

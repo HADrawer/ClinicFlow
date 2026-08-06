@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { ErrorMessage, Loading } from "@/components/ui/feedback";
 import {MetricStrip} from "@/components/ui/metric-strip";
+import {useSelectedPatient} from "@/lib/selected-patient";
 type Queue = {
   id: number;
   appointment_id: number;
@@ -27,6 +28,7 @@ export default function QueuePage() {
   const [now] = useState(() => Date.now());
   const queue = useApi<Queue[]>("/appointments/workflow/queue");
   const appointments = useApi<Appointment[]>("/appointments");
+  const selected = useSelectedPatient();
   if (queue.loading || appointments.loading) return <Loading />;
   const map = new Map(appointments.data?.map((item) => [item.id, item]));
   async function move(id: number, status: string) {
@@ -64,12 +66,17 @@ export default function QueuePage() {
                   <div>
                     <Link
                       href={`/patients/${item.patient_id}`}
-                      className="font-semibold text-[#164e67]"
+                      className="font-semibold text-[var(--link)]"
+                      onClick={() =>
+                        selected.selectPatient(
+                          appointment?.patient || item.patient_id,
+                        )
+                      }
                     >
                       {appointment?.patient.full_name ||
                         `Patient #${item.patient_id}`}
                     </Link>
-                    <p className="text-xs text-[#52656e]">
+                    <p className="text-xs text-[var(--ink-500)]">
                       {appointment?.service.name || "Scheduled service"}
                     </p>
                   </div>
@@ -84,7 +91,7 @@ export default function QueuePage() {
                   <p className="font-medium tabular">
                     {dateTime(item.arrived_at)}
                   </p>
-                  <p className="text-xs font-semibold text-[#9a6417]">
+                  <p className="text-xs font-semibold text-[var(--warning)]">
                     <Clock3 className="mr-1 inline" size={12} />
                     {Math.max(
                       0,

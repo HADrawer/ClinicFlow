@@ -37,10 +37,35 @@ In another terminal:
 ```bash
 cd frontend
 npm install
-NEXT_PUBLIC_API_URL=http://localhost:8000/api npm run dev
+BACKEND_API_ORIGIN=http://localhost:8000 npm run dev
 ```
 
-Important environment variables are `DATABASE_URL`, `JWT_SECRET`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `CORS_ORIGINS`, `PRIVATE_UPLOAD_DIR`, `MAX_UPLOAD_BYTES`, and `NEXT_PUBLIC_API_URL`. Use a strong secret and deployment-specific origins outside development.
+The frontend never talks to the backend directly from the browser. It proxies same-origin requests under `/backend-api/*` (see `next.config.ts`) to `${BACKEND_API_ORIGIN}/api/*` server-side, so the browser only ever needs the frontend's own origin — no LAN IP, Docker hostname, or port 8000. `BACKEND_API_ORIGIN` is server-only (never `NEXT_PUBLIC_*`) and is required at dev/build/start time; Next.js fails fast with a clear error if it is missing.
+
+Important environment variables are `DATABASE_URL`, `JWT_SECRET`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `CORS_ORIGINS`, `PRIVATE_UPLOAD_DIR`, `MAX_UPLOAD_BYTES`, and `BACKEND_API_ORIGIN`. Use a strong secret and deployment-specific origins outside development.
+
+## Staff invitation email (Resend)
+
+Staff invitations are sent by email through [Resend](https://resend.com). Configuration:
+
+| Variable | Purpose |
+|---|---|
+| `ENVIRONMENT` | `development` (default) or `production`. Only `production` enforces strict Resend configuration and hides invitation tokens from API responses. |
+| `RESEND_API_KEY` | Resend API key. Required in production. |
+| `RESEND_FROM_EMAIL` | Verified sender address in Resend. Required in production. |
+| `APP_BASE_URL` | Frontend origin used to build invitation links (`${APP_BASE_URL}/invite/${token}`). |
+| `INVITATION_EXPIRY_HOURS` | Default invitation lifetime (also the default for the `expires_in_hours` field on create). |
+
+Provider selection (`backend/app/email_provider.py`):
+
+- `environment=production` → `ResendEmailProvider`. If `RESEND_API_KEY`/`RESEND_FROM_EMAIL` are missing, the invitation is still created and persisted with `delivery_status=failed` (safe to resend later), and the API returns `502` with a clear configuration error instead of claiming the email was sent.
+- `environment!=production` with Resend credentials set → `ResendEmailProvider` (lets a developer opt into real sending locally).
+- `environment!=production` without credentials → `LoggingEmailProvider`, which never touches the network and only logs.
+- Tests inject `MockEmailProvider` via a FastAPI dependency override (`app.dependency_overrides[get_email_provider]`) to assert on sent content and simulate failures.
+
+Only the invitation's `token_hash` (SHA-256 digest) is ever persisted or logged; raw tokens exist only in memory long enough to build the email link. The `demo_token` field on `InvitationOut` (and the corresponding "copy link" UI) is populated only when `environment != production`, so production responses never expose a raw invitation token.
+
+Delivery is tracked per invitation via `delivery_status` (`pending`/`sent`/`failed`), `sent_at`, `last_delivery_error`, and `delivery_attempts`, visible on `GET /api/invitations`.
 
 ## Demo accounts
 

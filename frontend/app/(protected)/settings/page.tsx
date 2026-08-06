@@ -4,14 +4,18 @@ import { FormEvent, useState } from "react";
 import {
   Building2,
   Clock3,
+  Copy,
   FileText,
+  Pencil,
   Plus,
   Shield,
   SunMoon,
   Stethoscope,
+  Trash2,
   UsersRound,
+  Zap,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import type { Clinic, Service, User } from "@/lib/types";
 import { dateTime, money, titleCase } from "@/lib/utils";
@@ -22,19 +26,20 @@ import { Badge } from "@/components/ui/badge";
 import { Field, Input } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/data-table";
 import { ErrorMessage, Loading } from "@/components/ui/feedback";
-import { Modal } from "@/components/ui/modal";
+import { Modal, ConfirmDialog } from "@/components/ui/modal";
 import { useI18n } from "@/lib/i18n";
 import { ThemePreferenceControl } from "@/lib/theme";
+import { useAuth } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+import { ServiceForm } from "@/components/settings/service-form";
+import { CompanyForm, type Company } from "@/components/settings/company-form";
+import { TemplateForm, type Template } from "@/components/settings/template-form";
+import { QuickCreateSettings } from "@/components/settings/quick-create-settings";
+
 type SettingsData = {
   services: Service[];
-  insurance_companies: { id: number; name: string; active: boolean }[];
-  message_templates: {
-    id: number;
-    name: string;
-    kind: string;
-    language: string;
-    body: string;
-  }[];
+  insurance_companies: Company[];
+  message_templates: Template[];
 };
 type Audit = {
   id: number;
@@ -51,16 +56,129 @@ const tabs = [
   { id: "access", label: "Staff access", icon: UsersRound },
   { id: "templates", label: "Messages", icon: FileText },
   { id: "insurance", label: "Insurance", icon: Shield },
+  { id: "quickcreate", label: "Quick create", icon: Zap },
   { id: "audit", label: "Audit log", icon: Clock3 },
 ];
+
+type ServiceUsage = { appointments: number; waitlist_entries: number };
+
 export default function Settings() {
   const {t}=useI18n();
   const [tab, setTab] = useState("appearance");
   const clinic = useApi<Clinic>("/clinics/me");
   const settings = useApi<SettingsData>("/settings");
   const audit = useApi<Audit[]>("/audit-logs");
-  const [service, setService] = useState(false);
+
+  const [serviceModal, setServiceModal] = useState<{ editing?: Service } | null>(null);
+  const [serviceRemove, setServiceRemove] = useState<Service | null>(null);
+  const [serviceUsage, setServiceUsage] = useState<ServiceUsage | null>(null);
+  const [serviceUsageLoading, setServiceUsageLoading] = useState(false);
+  const [serviceBusy, setServiceBusy] = useState(false);
+  const [serviceError, setServiceError] = useState("");
+
+  const [companyModal, setCompanyModal] = useState<{ editing?: Company } | null>(null);
+  const [companyRemove, setCompanyRemove] = useState<Company | null>(null);
+  const [companyBlocked, setCompanyBlocked] = useState(false);
+  const [companyBusy, setCompanyBusy] = useState(false);
+  const [companyError, setCompanyError] = useState("");
+
+  const [templateModal, setTemplateModal] = useState<{ initial?: Partial<Template>; editingId?: number } | null>(null);
+  const [templateRemove, setTemplateRemove] = useState<Template | null>(null);
+  const [templateBusy, setTemplateBusy] = useState(false);
+
   if (clinic.loading || settings.loading || audit.loading) return <Loading />;
+
+  async function openServiceRemove(service: Service) {
+    setServiceRemove(service);
+    setServiceError("");
+    setServiceUsage(null);
+    setServiceUsageLoading(true);
+    try {
+      setServiceUsage(await api<ServiceUsage>(`/settings/services/${service.id}/usage`));
+    } catch {
+      setServiceUsage({ appointments: 0, waitlist_entries: 0 });
+    } finally {
+      setServiceUsageLoading(false);
+    }
+  }
+  const serviceInUse = serviceUsage ? serviceUsage.appointments + serviceUsage.waitlist_entries > 0 : false;
+  async function confirmServiceRemove() {
+    if (!serviceRemove) return;
+    setServiceBusy(true);
+    setServiceError("");
+    try {
+      if (serviceInUse) {
+        await api(`/settings/services/${serviceRemove.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            name: serviceRemove.name,
+            price: serviceRemove.price,
+            duration_minutes: serviceRemove.duration_minutes,
+            active: false,
+          }),
+        });
+      } else {
+        await api(`/settings/services/${serviceRemove.id}`, { method: "DELETE" });
+      }
+      settings.reload();
+      setServiceRemove(null);
+    } catch (e) {
+      setServiceError(e instanceof Error ? e.message : "Unable to remove service");
+    } finally {
+      setServiceBusy(false);
+    }
+  }
+
+  function openCompanyRemove(company: Company) {
+    setCompanyRemove(company);
+    setCompanyBlocked(false);
+    setCompanyError("");
+  }
+  async function confirmCompanyRemove() {
+    if (!companyRemove) return;
+    setCompanyBusy(true);
+    setCompanyError("");
+    try {
+      await api(`/settings/insurance-companies/${companyRemove.id}`, { method: "DELETE" });
+      settings.reload();
+      setCompanyRemove(null);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) setCompanyBlocked(true);
+      else setCompanyError(e instanceof Error ? e.message : "Unable to remove insurance company");
+    } finally {
+      setCompanyBusy(false);
+    }
+  }
+  async function deactivateCompany() {
+    if (!companyRemove) return;
+    setCompanyBusy(true);
+    setCompanyError("");
+    try {
+      await api(`/settings/insurance-companies/${companyRemove.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ name: companyRemove.name, active: false }),
+      });
+      settings.reload();
+      setCompanyRemove(null);
+    } catch (e) {
+      setCompanyError(e instanceof Error ? e.message : "Unable to deactivate insurance company");
+    } finally {
+      setCompanyBusy(false);
+    }
+  }
+
+  async function confirmTemplateRemove() {
+    if (!templateRemove) return;
+    setTemplateBusy(true);
+    try {
+      await api(`/settings/message-templates/${templateRemove.id}`, { method: "DELETE" });
+      settings.reload();
+      setTemplateRemove(null);
+    } finally {
+      setTemplateBusy(false);
+    }
+  }
+
   return (
     <>
       <PageHeader
@@ -92,9 +210,9 @@ export default function Settings() {
                 description={t("theme.workspaceDescription")}
               />
               <div className="max-w-xl p-6">
-                <p className="mb-3 text-sm font-medium text-[#314854]">{t("theme.appearance")}</p>
+                <p className="mb-3 text-sm font-medium text-[var(--ink-700)]">{t("theme.appearance")}</p>
                 <ThemePreferenceControl label={t}/>
-                <p className="mt-3 text-xs leading-5 text-[#52656e]">
+                <p className="mt-3 text-xs leading-5 text-[var(--ink-500)]">
                   {t("theme.systemDescription")}
                 </p>
               </div>
@@ -109,7 +227,7 @@ export default function Settings() {
                 title="Services and prices"
                 description="Available during appointment booking"
                 action={
-                  <Button className="h-9" onClick={() => setService(true)}>
+                  <Button className="h-9" onClick={() => setServiceModal({})}>
                     <Plus size={15} />
                     Add service
                   </Button>
@@ -141,6 +259,16 @@ export default function Settings() {
                       <Badge value={item.active ? "accepted" : "revoked"} />
                     ),
                   },
+                  {
+                    key: "actions",
+                    header: "Actions",
+                    render: (item) => (
+                      <div className="flex items-center gap-1">
+                        <Button aria-label={`Edit ${item.name}`} title="Edit" className="h-8 px-2" variant="secondary" onClick={() => setServiceModal({ editing: item })}><Pencil size={14}/></Button>
+                        <Button aria-label={`Remove ${item.name}`} title="Remove or deactivate" className="h-8 px-2" variant="danger" onClick={() => openServiceRemove(item)}><Trash2 size={14}/></Button>
+                      </div>
+                    ),
+                  },
                 ]}
               />
             </Card>
@@ -152,15 +280,12 @@ export default function Settings() {
                 description="Invitations, doctor profiles, permissions, disable/reactivate and sessions"
               />
               <div className="p-6">
-                <p className="max-w-2xl text-sm text-[#526973]">
+                <p className="max-w-2xl text-sm text-[var(--ink-500)]">
                   Staff accounts are managed through single-use invitations.
                   Direct temporary-password account creation is no longer used
                   for routine onboarding.
                 </p>
-                <Link
-                  className="mt-5 inline-flex h-10 items-center rounded-[4px] bg-[#167d78] px-4 text-sm font-semibold text-white"
-                  href="/staff"
-                >
+                <Link className="button-base button-primary mt-5" href="/staff">
                   Open staff access
                 </Link>
               </div>
@@ -171,29 +296,43 @@ export default function Settings() {
               <CardHeader
                 title="Message templates"
                 description="Mock development delivery remains clearly labeled"
+                action={
+                  <Button className="h-9" onClick={() => setTemplateModal({})}>
+                    <Plus size={15} />
+                    Add template
+                  </Button>
+                }
               />
-              <div className="divide-y divide-[#e3ebe9]">
+              <div className="divide-y divide-[var(--line)]">
                 {settings.data?.message_templates.map((item) => (
                   <div className="p-5" key={item.id}>
-                    <div className="flex justify-between">
-                      <div>
+                    <div className="flex justify-between gap-3">
+                      <div className="min-w-0">
                         <p className="font-semibold">{item.name}</p>
-                        <p className="text-xs text-[#52656e]">
+                        <p className="text-xs text-[var(--ink-500)]">
                           {titleCase(item.kind)}
                         </p>
                       </div>
-                      <span className="text-xs font-bold uppercase text-[#52656e]">
-                        {item.language}
-                      </span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="text-xs font-bold uppercase text-[var(--ink-500)]">
+                          {item.language}
+                        </span>
+                        <Button title="Edit" className="h-8 px-2" variant="secondary" onClick={() => setTemplateModal({ initial: item, editingId: item.id })}><Pencil size={14}/></Button>
+                        <Button title="Duplicate" className="h-8 px-2" variant="secondary" onClick={() => setTemplateModal({ initial: { ...item, name: `${item.name} (copy)` } })}><Copy size={14}/></Button>
+                        <Button title="Delete" className="h-8 px-2" variant="danger" onClick={() => setTemplateRemove(item)}><Trash2 size={14}/></Button>
+                      </div>
                     </div>
                     <p
-                      className="mt-3 bg-[#f5f7f6] p-3 text-sm leading-6"
+                      className="mt-3 bg-[var(--surface-secondary)] p-3 text-sm leading-6"
                       dir={item.language === "ar" ? "rtl" : "ltr"}
                     >
                       {item.body}
                     </p>
                   </div>
                 ))}
+                {!settings.data?.message_templates.length && (
+                  <p className="p-5 text-sm text-[var(--ink-500)]">No message templates yet.</p>
+                )}
               </div>
             </Card>
           )}{" "}
@@ -202,6 +341,12 @@ export default function Settings() {
               <CardHeader
                 title="Insurance companies"
                 description="No direct insurer integration is claimed"
+                action={
+                  <Button className="h-9" onClick={() => setCompanyModal({})}>
+                    <Plus size={15} />
+                    Add company
+                  </Button>
+                }
               />
               <DataTable
                 rows={settings.data?.insurance_companies || []}
@@ -219,9 +364,22 @@ export default function Settings() {
                       <Badge value={item.active ? "accepted" : "revoked"} />
                     ),
                   },
+                  {
+                    key: "actions",
+                    header: "Actions",
+                    render: (item) => (
+                      <div className="flex items-center gap-1">
+                        <Button aria-label={`Edit ${item.name}`} title="Edit" className="h-8 px-2" variant="secondary" onClick={() => setCompanyModal({ editing: item })}><Pencil size={14}/></Button>
+                        <Button aria-label={`Remove ${item.name}`} title="Remove or deactivate" className="h-8 px-2" variant="danger" onClick={() => openCompanyRemove(item)}><Trash2 size={14}/></Button>
+                      </div>
+                    ),
+                  },
                 ]}
               />
             </Card>
+          )}{" "}
+          {tab === "quickcreate" && clinic.data && (
+            <QuickCreateSettings clinic={clinic.data} onSaved={() => { clinic.reload(); }} />
           )}{" "}
           {tab === "audit" && (
             <Card>
@@ -260,20 +418,96 @@ export default function Settings() {
           )}
         </div>
       </div>
-      <Modal
-        open={service}
-        onClose={() => setService(false)}
-        title="Add service"
-        size="max-w-lg"
-      >
+
+      <Modal open={serviceModal !== null} onClose={() => setServiceModal(null)} title={serviceModal?.editing ? "Edit service" : "Add service"} size="max-w-lg">
         <ServiceForm
-          onCancel={() => setService(false)}
-          onSaved={() => {
-            setService(false);
-            settings.reload();
-          }}
+          initial={serviceModal?.editing}
+          editingId={serviceModal?.editing?.id}
+          onCancel={() => setServiceModal(null)}
+          onSaved={() => { setServiceModal(null); settings.reload(); }}
         />
       </Modal>
+      <Modal open={serviceRemove !== null} onClose={() => setServiceRemove(null)} title="Remove service" size="max-w-md">
+        {serviceRemove && (
+          <div className="p-5">
+            {serviceUsageLoading ? (
+              <Loading />
+            ) : serviceInUse ? (
+              <>
+                <p className="text-sm leading-6 text-[var(--ink-700)]">
+                  <strong>{serviceRemove.name}</strong> is used by {serviceUsage?.appointments || 0} appointment{serviceUsage?.appointments === 1 ? "" : "s"} and {serviceUsage?.waitlist_entries || 0} waitlist entr{serviceUsage?.waitlist_entries === 1 ? "y" : "ies"}. Deleting it is blocked to protect those records — deactivate it instead so it disappears from booking without breaking history.
+                </p>
+                <ErrorMessage message={serviceError} />
+                <div className="mt-6 flex justify-end gap-2">
+                  <Button variant="secondary" onClick={() => setServiceRemove(null)}>{t("common.cancel")}</Button>
+                  <Button variant="danger" disabled={serviceBusy} onClick={confirmServiceRemove}>{serviceBusy ? t("common.working") : "Deactivate service"}</Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm leading-6 text-[var(--ink-700)]">
+                  Remove <strong>{serviceRemove.name}</strong>? It is not referenced by any appointment or waitlist entry. This cannot be undone.
+                </p>
+                <ErrorMessage message={serviceError} />
+                <div className="mt-6 flex justify-end gap-2">
+                  <Button variant="secondary" onClick={() => setServiceRemove(null)}>{t("common.cancel")}</Button>
+                  <Button variant="danger" disabled={serviceBusy} onClick={confirmServiceRemove}>{serviceBusy ? t("common.working") : "Delete service"}</Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      <Modal open={companyModal !== null} onClose={() => setCompanyModal(null)} title={companyModal?.editing ? "Edit insurance company" : "Add insurance company"} size="max-w-lg">
+        <CompanyForm
+          initial={companyModal?.editing}
+          editingId={companyModal?.editing?.id}
+          onCancel={() => setCompanyModal(null)}
+          onSaved={() => { setCompanyModal(null); settings.reload(); }}
+        />
+      </Modal>
+      <Modal open={companyRemove !== null} onClose={() => setCompanyRemove(null)} title="Remove insurance company" size="max-w-md">
+        {companyRemove && (
+          <div className="p-5">
+            {companyBlocked ? (
+              <p className="text-sm leading-6 text-[var(--ink-700)]">
+                <strong>{companyRemove.name}</strong> has existing claims on file, so deleting it is blocked to protect those records. Deactivate it instead so it disappears from new claims without breaking history.
+              </p>
+            ) : (
+              <p className="text-sm leading-6 text-[var(--ink-700)]">
+                Remove <strong>{companyRemove.name}</strong>? This cannot be undone. If this insurer has existing claims, removal will be blocked automatically and you can deactivate it instead.
+              </p>
+            )}
+            <ErrorMessage message={companyError} />
+            <div className="mt-6 flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setCompanyRemove(null)}>{t("common.cancel")}</Button>
+              {companyBlocked ? (
+                <Button variant="danger" disabled={companyBusy} onClick={deactivateCompany}>{companyBusy ? t("common.working") : "Deactivate company"}</Button>
+              ) : (
+                <Button variant="danger" disabled={companyBusy} onClick={confirmCompanyRemove}>{companyBusy ? t("common.working") : "Delete company"}</Button>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal open={templateModal !== null} onClose={() => setTemplateModal(null)} title={templateModal?.editingId ? "Edit message template" : "New message template"} size="max-w-3xl">
+        <TemplateForm
+          initial={templateModal?.initial}
+          editingId={templateModal?.editingId}
+          onCancel={() => setTemplateModal(null)}
+          onSaved={() => { setTemplateModal(null); settings.reload(); }}
+        />
+      </Modal>
+      <ConfirmDialog
+        open={templateRemove !== null}
+        onClose={() => setTemplateRemove(null)}
+        onConfirm={confirmTemplateRemove}
+        busy={templateBusy}
+        title="Delete message template"
+        description={templateRemove ? `Delete "${templateRemove.name}"? This cannot be undone. It will no longer be offered when sending messages.` : ""}
+      />
     </>
   );
 }
@@ -284,9 +518,22 @@ function ClinicForm({
   clinic: Clinic;
   onSaved: () => void;
 }) {
+  const { user } = useAuth();
+  const router = useRouter();
   const [form, setForm] = useState(clinic);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reopening, setReopening] = useState(false);
+  async function reopenSetup() {
+    setReopening(true);
+    try {
+      await api("/clinics/me/onboarding/reopen", { method: "POST" });
+      router.push("/onboarding");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to reopen clinic setup");
+      setReopening(false);
+    }
+  }
   const featureNames = [
     "nursing_triage_enabled",
     "insurance_enabled",
@@ -308,6 +555,8 @@ function ClinicForm({
           name: form.name,
           address: form.address,
           phone: form.phone,
+          contact_email: form.contact_email || null,
+          timezone: form.timezone,
           logo_url: form.logo_url || null,
           working_hours: form.working_hours,
           pharmacy_enabled: form.pharmacy_enabled,
@@ -331,6 +580,19 @@ function ClinicForm({
       <CardHeader
         title="Clinic profile and feature flags"
         description="Disabled modules are hidden and rejected by backend APIs"
+        action={
+          user?.role === "owner" && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-9"
+              disabled={reopening}
+              onClick={reopenSetup}
+            >
+              {reopening ? "Opening…" : "Reopen clinic setup"}
+            </Button>
+          )
+        }
       />
       <form className="space-y-6 p-5" onSubmit={submit}>
         <ErrorMessage message={error} />
@@ -349,6 +611,20 @@ function ClinicForm({
               required
             />
           </Field>
+          <Field label="Contact email">
+            <Input
+              type="email"
+              value={form.contact_email || ""}
+              onChange={(e) => setForm({ ...form, contact_email: e.target.value })}
+            />
+          </Field>
+          <Field label="Time zone" required>
+            <Input
+              value={form.timezone}
+              onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+              required
+            />
+          </Field>
           <div className="sm:col-span-2">
             <Field label="Address" required>
               <Input
@@ -361,8 +637,8 @@ function ClinicForm({
         </div>
         <fieldset>
           <legend className="mb-3 font-semibold">Feature access</legend>
-          <div className="grid gap-2 border border-[#d6e1de] p-4 sm:grid-cols-2">
-            <label className="flex items-center gap-2 text-sm font-semibold text-[#0f625f]">
+          <div className="grid gap-2 border border-[var(--line)] p-4 sm:grid-cols-2">
+            <label className="flex items-center gap-2 text-sm font-semibold text-[var(--link)]">
               <input
                 type="checkbox"
                 checked={form.pharmacy_enabled}
@@ -413,87 +689,12 @@ function ClinicForm({
             ))}
           </div>
         </div>
-        <div className="flex justify-end border-t border-[#d6e1de] pt-4">
+        <div className="flex justify-end border-t border-[var(--line)] pt-4">
           <Button disabled={busy}>
             {busy ? "Saving…" : "Save clinic settings"}
           </Button>
         </div>
       </form>
     </Card>
-  );
-}
-function ServiceForm({
-  onCancel,
-  onSaved,
-}: {
-  onCancel: () => void;
-  onSaved: () => void;
-}) {
-  const [form, setForm] = useState({
-    name: "",
-    price: "25.000",
-    duration_minutes: "30",
-  });
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      await api("/settings/services", {
-        method: "POST",
-        body: JSON.stringify({
-          name: form.name,
-          price: Number(form.price),
-          duration_minutes: Number(form.duration_minutes),
-          active: true,
-        }),
-      });
-      onSaved();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to add service");
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <form className="space-y-4 p-5" onSubmit={submit}>
-      <ErrorMessage message={error} />
-      <Field label="Service name" required>
-        <Input
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          required
-        />
-      </Field>
-      <Field label="Price (BHD)" required>
-        <Input
-          type="number"
-          step=".001"
-          min="0"
-          value={form.price}
-          onChange={(e) => setForm({ ...form, price: e.target.value })}
-          required
-        />
-      </Field>
-      <Field label="Duration (minutes)" required>
-        <Input
-          type="number"
-          min="5"
-          value={form.duration_minutes}
-          onChange={(e) =>
-            setForm({ ...form, duration_minutes: e.target.value })
-          }
-          required
-        />
-      </Field>
-      <div className="flex justify-end gap-2 border-t border-[#d6e1de] pt-4">
-        <Button type="button" variant="secondary" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button disabled={busy}>Add service</Button>
-      </div>
-    </form>
   );
 }

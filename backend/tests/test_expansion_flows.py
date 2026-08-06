@@ -532,7 +532,11 @@ def test_secure_documents_quality_and_direct_tenant_isolation(client, auth):
         f"/api/documents/{uploaded.json()['id']}/download-link", headers=auth
     )
     assert link.status_code == 200
-    download = client.get(link.json()["url"])
+    # download_link() returns a path relative to the API mount (consistent
+    # with every other endpoint's response paths, which the frontend
+    # resolves against its own /backend-api proxy base); prepend the mount
+    # prefix to call it directly against the raw app here.
+    download = client.get(f"/api{link.json()['url']}")
     assert download.status_code == 200
     assert download.content == b"%PDF-1.4 demo"
 

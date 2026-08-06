@@ -51,6 +51,7 @@ def register(data: Register, db: Db):
         phone=data.phone,
         address="",
         working_hours=clinic_router.DEFAULT_HOURS,
+        onboarding_completed=False,
     )
     db.add(clinic)
     db.flush()

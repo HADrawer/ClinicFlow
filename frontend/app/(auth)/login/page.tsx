@@ -24,21 +24,21 @@ export default function Login(){
   }
 
   return <div className="w-full max-w-md">
-    <p className="text-xs font-semibold uppercase tracking-[.16em] text-[#167d78]">{t("auth.secureAccess")}</p>
-    <h1 className="mt-3 text-3xl font-semibold tracking-[-.03em] text-[#10212b]">{t("auth.loginTitle")}</h1>
-    <p className="mt-2 text-sm text-[#52656e]">{t("auth.loginDescription")}</p>
+    <p className="text-xs font-semibold uppercase tracking-[.16em] text-[var(--gulf-teal)]">{t("auth.secureAccess")}</p>
+    <h1 className="mt-3 text-3xl font-semibold tracking-[-.03em] text-[var(--ink-950)]">{t("auth.loginTitle")}</h1>
+    <p className="mt-2 text-sm text-[var(--ink-500)]">{t("auth.loginDescription")}</p>
     <form onSubmit={submit} className="mt-8 space-y-5">
       <ErrorMessage message={error}/>
       <Field label={t("auth.email")} required><Input dir="ltr" type="email" autoComplete="email" value={email} onChange={event=>setEmail(event.target.value)} required/></Field>
       <div>
         <Field label={t("auth.password")} required><Input type="password" autoComplete="current-password" value={password} onChange={event=>setPassword(event.target.value)} required/></Field>
-        <div className="mt-2 text-end"><Link className="text-xs font-semibold text-[#0f625f] hover:underline" href="/forgot-password">{t("auth.forgotPassword")}</Link></div>
+        <div className="mt-2 text-end"><Link className="text-xs font-semibold text-[var(--link)] hover:underline" href="/forgot-password">{t("auth.forgotPassword")}</Link></div>
       </div>
       <Button className="w-full" disabled={busy}>{busy?t("auth.signingIn"):t("auth.signIn")}</Button>
     </form>
-    <div className="mt-6 border-s-4 border-[#167d78] bg-[#f1f7f5] p-4 text-xs leading-5 text-[#526973]">
-      <strong className="text-[#314854]">{t("auth.demoOwner")}</strong><br/><span dir="ltr">owner@clinicflow.test · password123</span>
+    <div className="alert alert-info mt-6 text-xs leading-5">
+      <strong className="text-[var(--ink-700)]">{t("auth.demoOwner")}</strong><br/><span dir="ltr">owner@clinicflow.test · password123</span>
     </div>
-    <p className="mt-6 text-center text-sm text-[#52656e]">{t("auth.openingClinic")} <Link className="font-semibold text-[#0f625f] hover:underline" href="/register">{t("auth.createWorkspaceLink")}</Link></p>
+    <p className="mt-6 text-center text-sm text-[var(--ink-500)]">{t("auth.openingClinic")} <Link className="font-semibold text-[var(--link)] hover:underline" href="/register">{t("auth.createWorkspaceLink")}</Link></p>
   </div>;
 }

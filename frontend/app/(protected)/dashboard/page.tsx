@@ -104,13 +104,13 @@ function ClinicDashboard() {
             action={
               role!=="accountant"?<Link
                 href="/appointments"
-                className="text-sm font-semibold text-[#0f625f]"
+                className="text-sm font-semibold text-[var(--link)]"
               >
                 {t("dashboard.openCalendar")}
-              </Link>:<Link href="/billing" className="text-sm font-semibold text-[#0f625f]">{t("billing.open")}</Link>
+              </Link>:<Link href="/billing" className="text-sm font-semibold text-[var(--link)]">{t("billing.open")}</Link>
             }
           />
-          {role==="accountant"?<div className="divide-y divide-[#e3ebe9] px-5">{[[t("dashboard.monthCollected"),money(data.monthly_revenue)],[t("dashboard.outstanding"),money(data.outstanding_balances)],[t("dashboard.pendingInsurance"),money(data.pending_insurance)]].map(([label,value])=><div className="flex items-center justify-between py-4" key={label}><span className="text-sm text-[#52656e]">{label}</span><strong className="tabular text-[#163c52]">{value}</strong></div>)}</div>:<>
+          {role==="accountant"?<div className="divide-y divide-[var(--line)] px-5">{[[t("dashboard.monthCollected"),money(data.monthly_revenue)],[t("dashboard.outstanding"),money(data.outstanding_balances)],[t("dashboard.pendingInsurance"),money(data.pending_insurance)]].map(([label,value])=><div className="flex items-center justify-between py-4" key={label}><span className="text-sm text-[var(--ink-500)]">{label}</span><strong className="tabular text-[var(--ink-950)]">{value}</strong></div>)}</div>:<>
             <div className="hidden sm:block"><DataTable
               rows={data.upcoming_appointments}
               keyOf={(item) => item.id}
@@ -122,7 +122,7 @@ function ClinicDashboard() {
                 {key:"status",header:t("common.status"),render:item=><Badge value={item.status}/>},
               ]}
             /></div>
-            <div className="divide-y divide-[#e3ebe9] sm:hidden">{data.upcoming_appointments.map(item=><Link href={`/appointments/${item.id}`} className="block px-5 py-3" key={item.id}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold text-[#164e67]">{item.patient}</p><p className="mt-0.5 text-xs text-[#52656e]">{dateTime(item.time)}</p></div><Badge value={item.status}/></div><p className="mt-2 truncate text-xs text-[#52656e]">{item.doctor} · {item.service}</p></Link>)}</div>
+            <div className="divide-y divide-[var(--line)] sm:hidden">{data.upcoming_appointments.map(item=><Link href={`/appointments/${item.id}`} className="block px-5 py-3" key={item.id}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold text-[var(--link)]">{item.patient}</p><p className="mt-0.5 text-xs text-[var(--ink-500)]">{dateTime(item.time)}</p></div><Badge value={item.status}/></div><p className="mt-2 truncate text-xs text-[var(--ink-500)]">{item.doctor} · {item.service}</p></Link>)}</div>
           </>}
         </Card>
         <Card>
@@ -176,13 +176,13 @@ function ClinicDashboard() {
               title={t("dashboard.recentActivity")}
               description={t("dashboard.noPatientDetails")}
             />
-            <div className="divide-y divide-[#e3ebe9] px-5">
+            <div className="divide-y divide-[var(--line)] px-5">
               {data.recent_activity.map((item, index) => (
                 <div className="py-3" key={index}>
-                  <p className="text-sm font-medium text-[#314854]">
+                  <p className="text-sm font-medium text-[var(--ink-700)]">
                     {t(`audit.${item.action}`)===`audit.${item.action}`?titleCase(item.action.replaceAll(".", " ")):t(`audit.${item.action}`)}
                   </p>
-                  <p className="mt-0.5 text-xs text-[#52656e]">
+                  <p className="mt-0.5 text-xs text-[var(--ink-500)]">
                     {dateTime(item.created_at)}
                   </p>
                 </div>
@@ -194,11 +194,11 @@ function ClinicDashboard() {
               title={t("dashboard.doctorWorkload")}
               description={t("dashboard.operationalVolume")}
             />
-            <div className="divide-y divide-[#e3ebe9] px-5">
+            <div className="divide-y divide-[var(--line)] px-5">
               {data.top_doctors.map((item) => (
                 <div className="flex justify-between py-3" key={item.doctor}>
                   <span className="text-sm font-medium">{item.doctor}</span>
-                  <span className="text-sm tabular text-[#52656e]">
+                  <span className="text-sm tabular text-[var(--ink-500)]">
                     {t("dashboard.appointmentCount",{count:item.appointments})}
                   </span>
                 </div>
@@ -229,7 +229,7 @@ function RoleActions({ role }: { role: string }) {
     return (
       <>
         <Link
-          className="inline-flex h-10 items-center gap-2 rounded-[4px] border border-[#b9cbc6] bg-white px-4 text-sm font-semibold text-[#314854]"
+          className="button-base button-secondary"
           href="/queue"
         >
           <Clock3 size={16} />
@@ -242,7 +242,7 @@ function RoleActions({ role }: { role: string }) {
     return (
       <>
         <Link
-          className="inline-flex h-10 items-center gap-2 rounded-[4px] border border-[#b9cbc6] bg-white px-4 text-sm font-semibold text-[#314854]"
+          className="button-base button-secondary"
           href="/patients"
         >
           <Search size={16} />
@@ -301,28 +301,28 @@ function PharmacyDashboard() {
       <div className="mt-5 grid gap-4 sm:grid-cols-3">
         <Link
           href="/pharmacy/stock"
-          className="border-l-4 border-[#167d78] bg-white p-5 text-sm font-semibold text-[#163c52] shadow-sm"
+          className="surface-panel border-l-4 border-[var(--gulf-teal)] p-5 text-sm font-semibold text-[var(--ink-950)]"
         >
           Review batch stock
-          <span className="mt-1 block text-xs font-normal text-[#52656e]">
+          <span className="mt-1 block text-xs font-normal text-[var(--ink-500)]">
             FEFO, expiry and quantity
           </span>
         </Link>
         <Link
           href="/pharmacy/purchases"
-          className="border-l-4 border-[#167d78] bg-white p-5 text-sm font-semibold text-[#163c52] shadow-sm"
+          className="surface-panel border-l-4 border-[var(--gulf-teal)] p-5 text-sm font-semibold text-[var(--ink-950)]"
         >
           Receive a purchase
-          <span className="mt-1 block text-xs font-normal text-[#52656e]">
+          <span className="mt-1 block text-xs font-normal text-[var(--ink-500)]">
             Create traceable stock movements
           </span>
         </Link>
         <Link
           href="/pharmacy/medicines"
-          className="border-l-4 border-[#167d78] bg-white p-5 text-sm font-semibold text-[#163c52] shadow-sm"
+          className="surface-panel border-l-4 border-[var(--gulf-teal)] p-5 text-sm font-semibold text-[var(--ink-950)]"
         >
           Medicine catalog
-          <span className="mt-1 block text-xs font-normal text-[#52656e]">
+          <span className="mt-1 block text-xs font-normal text-[var(--ink-500)]">
             Operational catalog, not clinical classification
           </span>
         </Link>

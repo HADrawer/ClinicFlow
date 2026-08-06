@@ -4,9 +4,9 @@ import Link from "next/link";
 import {usePathname,useRouter} from "next/navigation";
 import {useEffect,useMemo,useState} from "react";
 import {
-  Activity,CalendarDays,CalendarPlus,ChevronDown,ClipboardList,Clock3,CreditCard,
+  Activity,CalendarDays,ChevronDown,ClipboardList,Clock3,CreditCard,
   FileChartColumn,FlaskConical,LayoutDashboard,ListPlus,LogOut,Menu,
-  MessageCircle,Pill,Plus,Settings,ShieldCheck,Stethoscope,UserPlus,Users,UsersRound,X,
+  MessageCircle,Pill,Plus,Settings,ShieldCheck,Stethoscope,Users,UsersRound,X,
 } from "lucide-react";
 import {useAuth} from "@/lib/auth";
 import {cn,titleCase} from "@/lib/utils";
@@ -14,8 +14,9 @@ import type {Role} from "@/lib/types";
 import {Loading} from "@/components/ui/feedback";
 import {LanguageSwitcher,useI18n} from "@/lib/i18n";
 import {ThemeSwitcher} from "@/lib/theme";
-import {hasAnyPermission,hasPermission} from "@/lib/permissions";
+import {hasAnyPermission} from "@/lib/permissions";
 import {useQuickCreate} from "@/lib/quick-create";
+import {QUICK_CREATE_CATALOG,type QuickCreateActionId} from "@/lib/quick-create-catalog";
 import {useSelectedPatient} from "@/lib/selected-patient";
 import {PatientContextRail} from "./patient-context";
 
@@ -39,7 +40,7 @@ const groups:{labelKey:string;items:NavItem[]}[]=[
     {href:"/staff",labelKey:"navigation.staff",icon:UsersRound,roles:["owner"],permissions:["staff.manage"]},
     {href:"/quality",labelKey:"navigation.quality",icon:ClipboardList,roles:["owner","receptionist","nurse"],permissions:["quality.manage"]},
     {href:"/reports",labelKey:"navigation.reports",icon:FileChartColumn,roles:["owner","accountant","pharmacist"],permissions:["reports.view"]},
-    {href:"/settings",labelKey:"navigation.settings",icon:Settings,roles:["owner"]},
+    {href:"/settings",labelKey:"navigation.settings",icon:Settings,roles:["owner"],permissions:["settings.manage"]},
   ]},
 ];
 
@@ -60,11 +61,23 @@ export function AppShell({children}:{children:React.ReactNode}){
   const [quick,setQuick]=useState(false);
 
   useEffect(()=>{if(!loading&&!user)router.replace("/login")},[loading,user,router]);
+  useEffect(()=>{if(user&&user.role==="owner"&&user.clinic&&!user.clinic.onboarding_completed&&path!=="/onboarding")router.replace("/onboarding")},[user,path,router]);
   useEffect(()=>{setMobile(false);setProfile(false);setQuick(false)},[path]);
   useEffect(()=>{const close=(event:KeyboardEvent)=>{if(event.key==="Escape")setQuick(false)};document.addEventListener("keydown",close);return()=>document.removeEventListener("keydown",close)},[]);
   const visible=useMemo(()=>groups
     .map(group=>({...group,items:group.items.filter(item=>user&&(item.roles.includes(user.role)||Boolean(item.permissions&&hasAnyPermission(user,item.permissions)))&&(!item.pharmacy||user.clinic?.pharmacy_enabled))}))
     .filter(group=>group.items.length),[user]);
+  const quickActions=useMemo(()=>(user?.clinic?.quick_create_actions||[])
+    .filter((id):id is QuickCreateActionId=>id in QUICK_CREATE_CATALOG)
+    .filter(id=>hasAnyPermission(user,QUICK_CREATE_CATALOG[id].permissions)),[user]);
+  const runQuickCreate=(id:QuickCreateActionId)=>{
+    setQuick(false);
+    if(id==="add_patient")quickCreate.openPatient();
+    else if(id==="new_appointment")quickCreate.openAppointment();
+    else if(id==="new_invoice")quickCreate.openInvoice();
+    else if(id==="upload_document")quickCreate.openDocument();
+    else if(id==="record_incident")quickCreate.openIncident();
+  };
 
   if(loading||!user)return <div className="min-h-screen bg-[var(--canvas)]"><Loading label={t("common.openingClinicFlow")}/></div>;
   const initials=user.full_name.split(" ").map(part=>part[0]).slice(0,2).join("");
@@ -85,10 +98,13 @@ export function AppShell({children}:{children:React.ReactNode}){
           <div className="relative">
             <button className="button-base button-primary min-h-9 px-2.5 sm:px-3" aria-expanded={quick} aria-haspopup="menu" onClick={()=>{setQuick(current=>!current);setProfile(false)}}><Plus size={16}/><span className="hidden sm:inline">{t("quickCreate.label")}</span></button>
             {quick&&<div className="quick-create-menu" role="menu" aria-label={t("quickCreate.label")}>
-              {hasPermission(user,"patients.create")&&<button role="menuitem" onClick={()=>{setQuick(false);quickCreate.openPatient()}}><UserPlus size={16}/><span><strong>{t("quickCreate.addPatient")}</strong><small>{t("quickCreate.addPatientHint")}</small></span></button>}
-              {(hasPermission(user,"appointments.manage_own")||hasPermission(user,"appointments.manage_all"))&&<button role="menuitem" onClick={()=>{setQuick(false);quickCreate.openAppointment()}}><CalendarPlus size={16}/><span><strong>{t("appointments.new")}</strong><small>{t("quickCreate.appointmentHint")}</small></span></button>}
-              {hasPermission(user,"staff.manage")&&<Link role="menuitem" href="/staff?invite=1"><UsersRound size={16}/><span><strong>{t("quickCreate.inviteStaff")}</strong><small>{t("quickCreate.inviteHint")}</small></span></Link>}
-              {hasPermission(user,"billing.create")&&selected.detail&&<Link role="menuitem" href={`/billing/new?patient=${selected.detail.patient.id}`}><CreditCard size={16}/><span><strong>{t("forms.createInvoice")}</strong><small>{selected.detail.patient.full_name}</small></span></Link>}
+              {quickActions.map(id=>{
+                const entry=QUICK_CREATE_CATALOG[id];
+                const Icon=entry.icon;
+                const hint=id==="new_invoice"&&selected.detail?selected.detail.patient.full_name:t(entry.hintKey);
+                return <button key={id} role="menuitem" onClick={()=>runQuickCreate(id)}><Icon size={16}/><span><strong>{t(entry.labelKey)}</strong><small>{hint}</small></span></button>;
+              })}
+              {!quickActions.length&&<p className="px-4 py-3 text-xs text-[var(--ink-500)]">{t("quickCreate.none")}</p>}
             </div>}
           </div>
           <ThemeSwitcher label={t}/>
@@ -139,7 +155,7 @@ export function AppShell({children}:{children:React.ReactNode}){
       <div className="app-sidebar__foot"><div className="flex items-center gap-2 text-[11px]"><Stethoscope size={14}/>{t("app.clinicianLed")}</div></div>
     </aside>
 
-    {mobile&&<button className="fixed inset-0 z-30 bg-[#20283a]/55 lg:hidden" onClick={()=>setMobile(false)} aria-label={t("accessibility.closeOverlay")}/>}
+    {mobile&&<button className="fixed inset-0 z-30 dialog-backdrop lg:hidden" onClick={()=>setMobile(false)} aria-label={t("accessibility.closeOverlay")}/>}
     <main id="main-content" className={cn("app-main lg:ps-[260px]",selected.detail&&"app-main--patient")}><div className="app-workspace sm:p-5 lg:p-8">{children}</div></main>
     <PatientContextRail/>
   </div>;

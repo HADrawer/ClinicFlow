@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from ..dependencies import Db, roles
+from ..message_variables import render_template
 from ..models import (
     Appointment,
     Message,
@@ -69,7 +70,29 @@ def send(data: MessageCreate, db: Db, user=Depends(allowed)):
             )
             .order_by(MessageTemplate.language.desc())
         )
-        body = template.body if template else "You have a new message from your clinic."
+        if template:
+            appointment = (
+                db.get(Appointment, data.appointment_id)
+                if data.appointment_id
+                else None
+            )
+            values = {
+                "patient_name": patient.full_name,
+                "clinic_name": user.clinic.name,
+                "doctor_name": appointment.doctor.full_name if appointment else "",
+                "appointment_date": appointment.start_time.date().isoformat()
+                if appointment
+                else "",
+                "appointment_time": appointment.start_time.strftime("%H:%M")
+                if appointment
+                else "",
+                "service_name": appointment.service.name if appointment else "",
+                "invoice_number": "",
+                "amount": "",
+            }
+            body = render_template(template.body, values)
+        else:
+            body = "You have a new message from your clinic."
     item = Message(
         **data.model_dump(exclude={"body"}),
         body=body,
